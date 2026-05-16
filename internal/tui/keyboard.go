@@ -40,6 +40,30 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.SelectedMenuIdx = 1
 			m.State = StateBrowsing
 			return m, nil
+		case msg.String() == "p" || msg.String() == "P":
+			m.SelectedMenuIdx = 2
+			return m, nil
+		case msg.String() == "d" || msg.String() == "D":
+			m.SelectedMenuIdx = 3
+			return m, nil
+		case msg.String() == "u" || msg.String() == "U":
+			m.SelectedMenuIdx = 4
+			return m, nil
+		case msg.String() == "a" || msg.String() == "A":
+			m.SelectedMenuIdx = 5
+			return m, nil
+		case msg.String() == "y" || msg.String() == "Y":
+			m.SelectedMenuIdx = 6
+			return m, nil
+		case msg.String() == "s" || msg.String() == "S":
+			m.SelectedMenuIdx = 7
+			return m, nil
+		case msg.String() == "g" || msg.String() == "G":
+			m.SelectedMenuIdx = 8
+			return m, nil
+		case msg.String() == "h" || msg.String() == "H":
+			m.SelectedMenuIdx = 9
+			return m, nil
 		}
 		return m, nil
 
@@ -130,6 +154,7 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, Keys.Dashboard):
 		if m.State == StateBrowsing {
 			m.State = StateDashboard
+			m.SelectedMenuIdx = 0
 		}
 		return m, nil
 	case key.Matches(msg, Keys.Sort):
