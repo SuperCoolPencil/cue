@@ -124,11 +124,13 @@ func (m Model) renderDashboardCenterCol(width, height int) string {
 	if m.isPlayingTitle != "" {
 		cwContent = lipgloss.NewStyle().Foreground(styles.PlexOrange).Render("\u25b7 "+styles.Truncate(m.isPlayingTitle, width-10)) + "\n\n  " + styles.RenderProgressBar(50, width-60)
 	} else {
+		// TODO: Fetch in-progress media items from playback service
 		cwContent = "\n\n  No items in progress"
 	}
 	cwBox := components.RenderBtopBox(" Continue Watching ", "", cwContent, width, row1Height, styles.Green)
 
 	// Recently Added
+	// TODO: Fetch recently added items from library service
 	raContent := "\n\n  No recently added items"
 	raBox := components.RenderBtopBox(" Recently Added ", "", raContent, halfWidth, row2Height, styles.Blue)
 
@@ -162,11 +164,13 @@ func (m Model) renderDashboardCenterCol(width, height int) string {
 	if m.StatusMsg != "" {
 		actContent = "\n\n  \u25cf " + styles.Truncate(m.StatusMsg, halfWidth-10)
 	} else {
+		// TODO: Fetch server activity logs or user events
 		actContent = "\n\n  No recent activity"
 	}
 	actBox := components.RenderBtopBox(" Recent Activity ", "", actContent, halfWidth, row3Height, styles.PlexOrange)
 
 	// On Deck
+	// TODO: Fetch next-up episodes for currently watching series
 	odContent := "\n\n  No items on deck"
 	odBox := components.RenderBtopBox(" On Deck ", "", odContent, otherHalfWidth, row3Height, styles.Green)
 
@@ -197,6 +201,7 @@ func (m Model) renderDashboardRightCol(width, height int) string {
 		"Refresh Libraries", "Backup Database", "Clean Bundles", "Update Libraries", "Optimize Database", "View Logs",
 	}
 	keyStyle := lipgloss.NewStyle().Foreground(styles.DimGray)
+	// TODO: Wire up actual action triggers in keyboard.go
 	// Swap columns so keybind is on the left
 	qaContent := createListLayout(width-2, qaHeight-2, qaCol1, qaCol2, lipgloss.NewStyle(), -1)
 	// We need to style col1, so let's adjust createListLayout or build it directly.
