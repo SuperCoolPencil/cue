@@ -5,6 +5,7 @@ import (
 
 	"github.com/SuperCoolPencil/cue/internal/tui/components"
 	"github.com/SuperCoolPencil/cue/internal/tui/styles"
+	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -30,31 +31,60 @@ func (m Model) renderDashboard() string {
 	return lipgloss.JoinVertical(lipgloss.Left, header, content, footer)
 }
 
+func createDashboardTable(width, height int, columns []table.Column, rows []table.Row, cursor int) string {
+	t := table.New(
+		table.WithColumns(columns),
+		table.WithRows(rows),
+		table.WithHeight(height-3),
+	)
+	s := table.DefaultStyles()
+	s.Header = lipgloss.NewStyle().Height(0).Margin(0).Padding(0)
+	s.Cell = lipgloss.NewStyle().PaddingLeft(2)
+	
+	if cursor >= 0 {
+		s.Selected = lipgloss.NewStyle().Foreground(styles.PlexOrange).PaddingLeft(2).Bold(true)
+		t.SetCursor(cursor)
+	} else {
+		s.Selected = s.Cell
+		t.SetStyles(s)
+	}
+	t.SetStyles(s)
+	
+	// table.View() includes an empty header row if we don't trim it, but setting Height(0) helps.
+	return t.View()
+}
+
 func (m Model) renderDashboardLeftCol(width, height int) string {
 	menuHeight := (height * 60) / 100
 	shortcutsHeight := height - menuHeight
 
 	// Main Menu
-	menuStr := "  " + lipgloss.NewStyle().Foreground(styles.PlexOrange).Render("Dashboard") + "\n\n" +
-		"  Libraries         [L]\n\n" +
-		"  Now Playing       [P]\n\n" +
-		"  Discover          [D]\n\n" +
-		"  Users             [U]\n\n" +
-		"  Activity          [A]\n\n" +
-		"  Playlists         [Y]\n\n" +
-		"  Settings          [S]\n\n" +
-		"  Plugins           [G]\n\n" +
-		"  Help              [H]"
-	
+	menuCols := []table.Column{{Title: "", Width: width - 8}, {Title: "", Width: 4}}
+	menuRows := []table.Row{
+		{"Dashboard", ""},
+		{"Libraries", "[L]"},
+		{"Now Playing", "[P]"},
+		{"Discover", "[D]"},
+		{"Users", "[U]"},
+		{"Activity", "[A]"},
+		{"Playlists", "[Y]"},
+		{"Settings", "[S]"},
+		{"Plugins", "[G]"},
+		{"Help", "[H]"},
+	}
+	menuStr := createDashboardTable(width, menuHeight, menuCols, menuRows, 0)
 	menuBox := components.RenderBtopBox("MAIN MENU", "", menuStr, width, menuHeight, styles.DimGray)
 
 	// Shortcuts
-	shortcutsStr := "  Search            [/]\n\n" +
-		"  Go to Library     [g]\n\n" +
-		"  Refresh           [r]\n\n" +
-		"  Global Search     [f]\n\n" +
-		"  Command Palette   [:]"
-
+	scCols := []table.Column{{Title: "", Width: width - 8}, {Title: "", Width: 4}}
+	scRows := []table.Row{
+		{"Search", "[/]"},
+		{"Go to Library", "[g]"},
+		{"Refresh", "[r]"},
+		{"Global Search", "[f]"},
+		{"Command Palette", "[:]"},
+	}
+	shortcutsStr := createDashboardTable(width, shortcutsHeight, scCols, scRows, -1)
 	shortcutsBox := components.RenderBtopBox("SHORTCUTS", "", shortcutsStr, width, shortcutsHeight, styles.DimGray)
 
 	return lipgloss.JoinVertical(lipgloss.Left, menuBox, shortcutsBox)
@@ -82,7 +112,8 @@ func (m Model) renderDashboardCenterCol(width, height int) string {
 	raBox := components.RenderBtopBox("RECENTLY ADDED", "", raContent, halfWidth, row2Height, styles.Blue)
 
 	// Libraries
-	libContent := ""
+	libCols := []table.Column{{Title: "", Width: otherHalfWidth - 8}, {Title: "", Width: 4}}
+	var libRows []table.Row
 	for i, lib := range m.Libraries {
 		if i > 5 {
 			break
@@ -91,9 +122,12 @@ func (m Model) renderDashboardCenterCol(width, height int) string {
 		if state, ok := m.LibraryStates[lib.ID]; ok {
 			count = state.Loaded
 		}
-		libContent += fmt.Sprintf("\u2022 %-20s %d\n\n", lib.Name, count)
+		libRows = append(libRows, table.Row{"\u2022 " + lib.Name, fmt.Sprintf("%d", count)})
 	}
-	if len(m.Libraries) == 0 {
+	libContent := ""
+	if len(libRows) > 0 {
+		libContent = createDashboardTable(otherHalfWidth, row2Height, libCols, libRows, -1)
+	} else {
 		libContent = "\n\n  No libraries loaded"
 	}
 	libBox := components.RenderBtopBox("LIBRARIES", "", libContent, otherHalfWidth, row2Height, styles.PlexOrange)
@@ -133,12 +167,16 @@ func (m Model) renderDashboardRightCol(width, height int) string {
 	npBox := components.RenderBtopBox("NOW PLAYING", "", npContent, width, npHeight, styles.PlexOrange)
 
 	// Quick Actions
-	qaContent := "[R] Refresh Libraries\n\n" +
-		"[B] Backup Database\n\n" +
-		"[C] Clean Bundles\n\n" +
-		"[U] Update Libraries\n\n" +
-		"[O] Optimize Database\n\n" +
-		"[X] View Logs"
+	qaCols := []table.Column{{Title: "", Width: width - 4}}
+	qaRows := []table.Row{
+		{"[R] Refresh Libraries"},
+		{"[B] Backup Database"},
+		{"[C] Clean Bundles"},
+		{"[U] Update Libraries"},
+		{"[O] Optimize Database"},
+		{"[X] View Logs"},
+	}
+	qaContent := createDashboardTable(width, qaHeight, qaCols, qaRows, -1)
 	qaBox := components.RenderBtopBox("QUICK ACTIONS", "", qaContent, width, qaHeight, styles.Blue)
 
 	return lipgloss.JoinVertical(lipgloss.Left, npBox, qaBox)
