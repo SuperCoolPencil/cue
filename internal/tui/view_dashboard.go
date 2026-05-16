@@ -2,10 +2,10 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/SuperCoolPencil/cue/internal/tui/components"
 	"github.com/SuperCoolPencil/cue/internal/tui/styles"
-	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -31,26 +31,45 @@ func (m Model) renderDashboard() string {
 	return lipgloss.JoinVertical(lipgloss.Left, header, content, footer)
 }
 
-func createDashboardTable(width, height int, columns []table.Column, rows []table.Row, cursor int) string {
-	t := table.New(
-		table.WithColumns(columns),
-		table.WithRows(rows),
-		table.WithHeight(height-3),
-	)
-	s := table.DefaultStyles()
-	s.Header = lipgloss.NewStyle().Height(0).Margin(0).Padding(0)
-	s.Cell = lipgloss.NewStyle().PaddingLeft(2)
-
-	if cursor >= 0 {
-		s.Selected = lipgloss.NewStyle().Foreground(styles.PlexOrange).PaddingLeft(2).Bold(true)
-		t.SetCursor(cursor)
-	} else {
-		s.Selected = s.Cell
-		t.SetStyles(s)
+// createListLayout creates a structured 2-column layout without manual spacing
+func createListLayout(width, height int, col1, col2 []string, col2Style lipgloss.Style, cursor int) string {
+	var lines []string
+	
+	activeStyle := lipgloss.NewStyle().Foreground(styles.PlexOrange).Bold(true)
+	
+	for i := 0; i < len(col1); i++ {
+		if i >= height {
+			break
+		}
+		
+		c1 := col1[i]
+		c2 := ""
+		if i < len(col2) {
+			c2 = col2[i]
+		}
+		
+		// Style active row if cursor matches
+		if cursor == i {
+			c1 = activeStyle.Render(c1)
+			c2 = activeStyle.Render(c2)
+		} else {
+			c2 = col2Style.Render(c2)
+		}
+		
+		// Calculate padding needed between col1 and col2
+		w1 := lipgloss.Width(c1)
+		w2 := lipgloss.Width(c2)
+		
+		padWidth := width - w1 - w2 - 2 // -2 for margins
+		if padWidth < 1 {
+			padWidth = 1
+		}
+		
+		line := " " + c1 + styles.Pad("", padWidth) + c2 + " "
+		lines = append(lines, line)
 	}
-	t.SetStyles(s)
-
-	return t.View()
+	
+	return strings.Join(lines, "\n")
 }
 
 func (m Model) renderDashboardLeftCol(width, height int) string {
@@ -58,42 +77,35 @@ func (m Model) renderDashboardLeftCol(width, height int) string {
 	shortcutsHeight := height - menuHeight
 
 	// Main Menu
-	menuCols := []table.Column{{Title: "", Width: width - 10}, {Title: "", Width: 6}}
-	keyStyle := lipgloss.NewStyle().Foreground(styles.DimGray)
-	menuRows := []table.Row{
-		{"Dashboard", ""},
-		{"Libraries", keyStyle.Render("[L]")},
-		{"Now Playing", keyStyle.Render("[P]")},
-		{"Discover", keyStyle.Render("[D]")},
-		{"Users", keyStyle.Render("[U]")},
-		{"Activity", keyStyle.Render("[A]")},
-		{"Playlists", keyStyle.Render("[Y]")},
-		{"Settings", keyStyle.Render("[S]")},
-		{"Plugins", keyStyle.Render("[G]")},
-		{"Help", keyStyle.Render("[H]")},
+	menuCol1 := []string{
+		"Dashboard", "Libraries", "Now Playing", "Discover", "Users", 
+		"Activity", "Playlists", "Settings", "Plugins", "Help",
 	}
-
-	// Determine if the menu is focused
+	menuCol2 := []string{
+		"", "[L]", "[P]", "[D]", "[U]", 
+		"[A]", "[Y]", "[S]", "[G]", "[H]",
+	}
+	
 	cursor := -1
 	borderColor := styles.DimGray
 	if m.State == StateDashboard {
 		cursor = m.SelectedMenuIdx
 		borderColor = styles.PlexOrange
 	}
-
-	menuStr := createDashboardTable(width, menuHeight, menuCols, menuRows, cursor)
+	
+	keyStyle := lipgloss.NewStyle().Foreground(styles.DimGray)
+	menuStr := createListLayout(width-2, menuHeight-2, menuCol1, menuCol2, keyStyle, cursor)
 	menuBox := components.RenderBtopBox(" Main Menu ", "", menuStr, width, menuHeight, borderColor)
 
 	// Shortcuts
-	scCols := []table.Column{{Title: "", Width: width - 10}, {Title: "", Width: 6}}
-	scRows := []table.Row{
-		{"Search", keyStyle.Render("[/]")},
-		{"Go to Library", keyStyle.Render("[g]")},
-		{"Refresh", keyStyle.Render("[r]")},
-		{"Global Search", keyStyle.Render("[f]")},
-		{"Command Palette", keyStyle.Render("[:]")},
+	scCol1 := []string{
+		"Search", "Go to Library", "Refresh", "Global Search", "Command Palette",
 	}
-	shortcutsStr := createDashboardTable(width, shortcutsHeight, scCols, scRows, -1)
+	scCol2 := []string{
+		"[/]", "[g]", "[r]", "[f]", "[:]",
+	}
+	
+	shortcutsStr := createListLayout(width-2, shortcutsHeight-2, scCol1, scCol2, keyStyle, -1)
 	shortcutsBox := components.RenderBtopBox(" Shortcuts ", "", shortcutsStr, width, shortcutsHeight, styles.DimGray)
 
 	return lipgloss.JoinVertical(lipgloss.Left, menuBox, shortcutsBox)
@@ -121,9 +133,8 @@ func (m Model) renderDashboardCenterCol(width, height int) string {
 	raBox := components.RenderBtopBox(" Recently Added ", "", raContent, halfWidth, row2Height, styles.Blue)
 
 	// Libraries
-	libCols := []table.Column{{Title: "", Width: otherHalfWidth - 10}, {Title: "", Width: 6}}
-	var libRows []table.Row
-	countStyle := lipgloss.NewStyle().Foreground(styles.DimGray)
+	var libNames []string
+	var libCounts []string
 	for i, lib := range m.Libraries {
 		if i > 5 {
 			break
@@ -132,11 +143,13 @@ func (m Model) renderDashboardCenterCol(width, height int) string {
 		if state, ok := m.LibraryStates[lib.ID]; ok {
 			count = state.Loaded
 		}
-		libRows = append(libRows, table.Row{"\u2022 " + lib.Name, countStyle.Render(fmt.Sprintf("%d", count))})
+		libNames = append(libNames, "• "+lib.Name)
+		libCounts = append(libCounts, fmt.Sprintf("%d", count))
 	}
 	libContent := ""
-	if len(libRows) > 0 {
-		libContent = createDashboardTable(otherHalfWidth, row2Height, libCols, libRows, -1)
+	if len(libNames) > 0 {
+		countStyle := lipgloss.NewStyle().Foreground(styles.DimGray)
+		libContent = createListLayout(otherHalfWidth-2, row2Height-2, libNames, libCounts, countStyle, -1)
 	} else {
 		libContent = "\n\n  No libraries loaded"
 	}
@@ -177,17 +190,23 @@ func (m Model) renderDashboardRightCol(width, height int) string {
 	npBox := components.RenderBtopBox(" Now Playing ", "", npContent, width, npHeight, styles.PlexOrange)
 
 	// Quick Actions
-	qaCols := []table.Column{{Title: "", Width: 6}, {Title: "", Width: width - 10}}
-	keyStyle := lipgloss.NewStyle().Foreground(styles.DimGray)
-	qaRows := []table.Row{
-		{keyStyle.Render("[R]"), "Refresh Libraries"},
-		{keyStyle.Render("[B]"), "Backup Database"},
-		{keyStyle.Render("[C]"), "Clean Bundles"},
-		{keyStyle.Render("[U]"), "Update Libraries"},
-		{keyStyle.Render("[O]"), "Optimize Database"},
-		{keyStyle.Render("[X]"), "View Logs"},
+	qaCol1 := []string{
+		"[R]", "[B]", "[C]", "[U]", "[O]", "[X]",
 	}
-	qaContent := createDashboardTable(width, qaHeight, qaCols, qaRows, -1)
+	qaCol2 := []string{
+		"Refresh Libraries", "Backup Database", "Clean Bundles", "Update Libraries", "Optimize Database", "View Logs",
+	}
+	keyStyle := lipgloss.NewStyle().Foreground(styles.DimGray)
+	// Swap columns so keybind is on the left
+	qaContent := createListLayout(width-2, qaHeight-2, qaCol1, qaCol2, lipgloss.NewStyle(), -1)
+	// We need to style col1, so let's adjust createListLayout or build it directly.
+	// Actually, let's just build it quickly here since it's inverted:
+	var qaLines []string
+	for i := 0; i < len(qaCol1); i++ {
+		qaLines = append(qaLines, " "+keyStyle.Render(qaCol1[i])+"  "+qaCol2[i])
+	}
+	qaContent = strings.Join(qaLines, "\n")
+	
 	qaBox := components.RenderBtopBox(" Quick Actions ", "", qaContent, width, qaHeight, styles.Blue)
 
 	return lipgloss.JoinVertical(lipgloss.Left, npBox, qaBox)
