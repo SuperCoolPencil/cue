@@ -40,103 +40,27 @@ func (m Model) View() string {
 
 	header := m.renderHeader()
 	headerHeight := lipgloss.Height(header)
-	
+
 	contentHeight := m.Height - ChromeHeight - headerHeight
-	stackLen := m.ColumnStack.Len()
-	layout := m.calculateColumnLayout(m.Width)
-
-	var content string
-
-	if stackLen == 0 {
-		content = ""
-	} else {
-		topIdx := stackLen - 1
-
-		// Only split vertically if we have enough height
-		canSplit := contentHeight >= 15
-
-		// Default list height: 33% of available height
-		listHeight := contentHeight / 3
-		if listHeight < 4 {
-			listHeight = 4
-		}
-		infoHeight := contentHeight - listHeight
-
-		// Tall list height (for episodes): 55% of available height
-		tallListHeight := (55 * contentHeight) / 100
-		if tallListHeight < 4 {
-			tallListHeight = 4
-		}
-		tallInfoHeight := contentHeight - tallListHeight
-
-		var columnViews []string
-
-		switch stackLen {
-		case 1:
-			// Root: library list
-			libCol := m.ColumnStack.Get(0)
-			libCol.SetFocused(m.State != StateInspecting)
-			libCol.SetSize(layout.activeWidth, contentHeight)
-			columnViews = append(columnViews, libCol.View())
-
-			// Show horizontal inspector for root libraries if enabled
-			if layout.inspectorWidth > 0 {
-				m.Inspector.SetSize(layout.inspectorWidth, contentHeight)
-				m.Inspector.SetItem(libCol.SelectedItem())
-				columnViews = append(columnViews, m.Inspector.View())
-			}
-
-		case 2:
-			// Tab 1: library list (full height)
-			// Tab 2: content column (split 33/66 or full)
-			libCol := m.ColumnStack.Get(0)
-			libCol.SetSize(layout.parentWidth, contentHeight)
-			columnViews = append(columnViews, libCol.View())
-
-			contentCol := m.ColumnStack.Get(1)
-			if canSplit {
-				columnViews = append(columnViews, m.renderSplitColumn(contentCol, layout.activeWidth, listHeight, infoHeight))
-			} else {
-				contentCol.SetSize(layout.activeWidth, contentHeight)
-				columnViews = append(columnViews, contentCol.View())
-			}
-
-		default:
-			// Tab 1: library list (full height)
-			// Tab 2: shows/movies column (full height if 3-col visible, else split)
-			// Tab 3: episodes/season-episodes column (split)
-			libCol := m.ColumnStack.Get(topIdx - 2)
-			if layout.grandparentWidth > 0 {
-				libCol.SetSize(layout.grandparentWidth, contentHeight)
-			} else {
-				libCol.SetSize(layout.parentWidth, contentHeight)
-			}
-			columnViews = append(columnViews, libCol.View())
-
-			parentCol := m.ColumnStack.Get(topIdx - 1)
-			if canSplit {
-				columnViews = append(columnViews, m.renderSplitColumn(parentCol, layout.parentWidth, listHeight, infoHeight))
-			} else {
-				parentCol.SetSize(layout.parentWidth, contentHeight)
-				columnViews = append(columnViews, parentCol.View())
-			}
-
-			activeCol := m.ColumnStack.Get(topIdx)
-			if canSplit {
-				h, ih := listHeight, infoHeight
-				// Episodes get more list space
-				if activeCol.ColumnType() == components.ColumnTypeEpisodes || activeCol.ColumnType() == components.ColumnTypeSeasonEpisodes {
-					h, ih = tallListHeight, tallInfoHeight
-				}
-				columnViews = append(columnViews, m.renderSplitColumn(activeCol, layout.activeWidth, h, ih))
-			} else {
-				activeCol.SetSize(layout.activeWidth, contentHeight)
-				columnViews = append(columnViews, activeCol.View())
-			}
-		}
-
-		content = lipgloss.JoinHorizontal(lipgloss.Top, columnViews...)
+	if contentHeight < 20 {
+		contentHeight = 20
 	}
+
+	leftWidth := (m.Width * 20) / 100
+	rightWidth := (m.Width * 25) / 100
+	centerWidth := m.Width - leftWidth - rightWidth
+
+	leftCol := m.renderDashboardLeftCol(leftWidth, contentHeight)
+	rightCol := m.renderDashboardRightCol(rightWidth, contentHeight)
+
+	var centerCol string
+	if m.State == StateDashboard {
+		centerCol = m.renderDashboardCenterCol(centerWidth, contentHeight)
+	} else {
+		centerCol = m.renderColumnStack(centerWidth, contentHeight)
+	}
+
+	content := lipgloss.JoinHorizontal(lipgloss.Top, leftCol, centerCol, rightCol)
 
 	// Footer
 	footer := m.renderFooter()
@@ -178,6 +102,32 @@ func (m Model) View() string {
 	}
 
 	return view
+}
+
+func (m Model) renderColumnStack(width, contentHeight int) string {
+	topCol := m.ColumnStack.Top()
+	if topCol == nil {
+		return ""
+	}
+
+	// Calculate heights for the vertical split
+	listHeight := contentHeight / 3
+	if listHeight < 4 {
+		listHeight = 4
+	}
+	infoHeight := contentHeight - listHeight
+
+	// Episodes get more list space
+	if topCol.ColumnType() == components.ColumnTypeEpisodes || topCol.ColumnType() == components.ColumnTypeSeasonEpisodes {
+		listHeight = (55 * contentHeight) / 100
+		if listHeight < 4 {
+			listHeight = 4
+		}
+		infoHeight = contentHeight - listHeight
+	}
+
+	// Render the top column taking the full width
+	return m.renderSplitColumn(topCol, width, listHeight, infoHeight)
 }
 
 // renderSplitColumn renders a content column as a vertical split:

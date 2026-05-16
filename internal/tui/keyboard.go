@@ -16,10 +16,28 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Handle state-specific keys
 	switch m.State {
 	case StateDashboard:
-		if key.Matches(msg, Keys.Quit) {
+		switch {
+		case key.Matches(msg, Keys.Quit):
 			return m, tea.Quit
-		}
-		if msg.String() == "l" || msg.String() == "L" {
+		case key.Matches(msg, Keys.Up):
+			m.SelectedMenuIdx--
+			if m.SelectedMenuIdx < 0 {
+				m.SelectedMenuIdx = 9 // 10 items
+			}
+			return m, nil
+		case key.Matches(msg, Keys.Down):
+			m.SelectedMenuIdx++
+			if m.SelectedMenuIdx > 9 {
+				m.SelectedMenuIdx = 0
+			}
+			return m, nil
+		case key.Matches(msg, Keys.Right), key.Matches(msg, Keys.Enter):
+			if m.SelectedMenuIdx == 1 { // Libraries
+				m.State = StateBrowsing
+			}
+			return m, nil
+		case msg.String() == "l" || msg.String() == "L":
+			m.SelectedMenuIdx = 1
 			m.State = StateBrowsing
 			return m, nil
 		}

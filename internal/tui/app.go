@@ -150,6 +150,8 @@ type Model struct {
 	pendingPlayback    *domain.MediaItem
 	pendingPlaylist    []domain.MediaItem
 	PendingSelectionID string // ID of item to select after load completes
+
+	SelectedMenuIdx int // For dashboard menu navigation
 }
 
 // NewModel creates a new application model

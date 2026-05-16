@@ -32,6 +32,15 @@ func (m Model) renderDashboard() string {
 }
 
 func createDashboardTable(width, height int, columns []table.Column, rows []table.Row, cursor int) string {
+	// Truncate rows to prevent overflow
+	for i := range rows {
+		for j := range rows[i] {
+			if lipgloss.Width(rows[i][j]) > columns[j].Width {
+				rows[i][j] = styles.Truncate(rows[i][j], columns[j].Width)
+			}
+		}
+	}
+
 	t := table.New(
 		table.WithColumns(columns),
 		table.WithRows(rows),
@@ -50,7 +59,6 @@ func createDashboardTable(width, height int, columns []table.Column, rows []tabl
 	}
 	t.SetStyles(s)
 	
-	// table.View() includes an empty header row if we don't trim it, but setting Height(0) helps.
 	return t.View()
 }
 
@@ -72,8 +80,17 @@ func (m Model) renderDashboardLeftCol(width, height int) string {
 		{"Plugins", "[G]"},
 		{"Help", "[H]"},
 	}
-	menuStr := createDashboardTable(width, menuHeight, menuCols, menuRows, 0)
-	menuBox := components.RenderBtopBox("MAIN MENU", "", menuStr, width, menuHeight, styles.DimGray)
+	
+	// Determine if the menu is focused
+	cursor := -1
+	borderColor := styles.DimGray
+	if m.State == StateDashboard {
+		cursor = m.SelectedMenuIdx
+		borderColor = styles.PlexOrange
+	}
+	
+	menuStr := createDashboardTable(width, menuHeight, menuCols, menuRows, cursor)
+	menuBox := components.RenderBtopBox("MAIN MENU", "", menuStr, width, menuHeight, borderColor)
 
 	// Shortcuts
 	scCols := []table.Column{{Title: "", Width: width - 8}, {Title: "", Width: 4}}
@@ -101,7 +118,7 @@ func (m Model) renderDashboardCenterCol(width, height int) string {
 	// Continue Watching
 	cwContent := ""
 	if m.isPlayingTitle != "" {
-		cwContent = lipgloss.NewStyle().Foreground(styles.PlexOrange).Render("\u25b7 "+m.isPlayingTitle) + "\n\n  " + styles.RenderProgressBar(50, width-60)
+		cwContent = lipgloss.NewStyle().Foreground(styles.PlexOrange).Render("\u25b7 "+styles.Truncate(m.isPlayingTitle, width-10)) + "\n\n  " + styles.RenderProgressBar(50, width-60)
 	} else {
 		cwContent = "\n\n  No items in progress"
 	}
@@ -137,7 +154,7 @@ func (m Model) renderDashboardCenterCol(width, height int) string {
 	// Recent Activity
 	actContent := ""
 	if m.StatusMsg != "" {
-		actContent = "\n\n  \u25cf " + m.StatusMsg
+		actContent = "\n\n  \u25cf " + styles.Truncate(m.StatusMsg, halfWidth-10)
 	} else {
 		actContent = "\n\n  No recent activity"
 	}
@@ -159,7 +176,7 @@ func (m Model) renderDashboardRightCol(width, height int) string {
 	// Now Playing
 	npContent := ""
 	if m.isPlayingTitle != "" {
-		npContent = lipgloss.NewStyle().Foreground(styles.White).Render("\n  Now Playing:\n  ") + lipgloss.NewStyle().Foreground(styles.PlexOrange).Render(m.isPlayingTitle)
+		npContent = lipgloss.NewStyle().Foreground(styles.White).Render("\n  Now Playing:\n  ") + lipgloss.NewStyle().Foreground(styles.PlexOrange).Render(styles.Truncate(m.isPlayingTitle, width-6))
 	} else {
 		npContent = "\n\n  Nothing is currently playing"
 	}
