@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/SuperCoolPencil/cue/internal/domain"
 	"github.com/SuperCoolPencil/cue/internal/tui/components"
 	"github.com/SuperCoolPencil/cue/internal/tui/styles"
 	"github.com/charmbracelet/lipgloss"
@@ -123,15 +124,56 @@ func (m Model) renderDashboardCenterCol(width, height int) string {
 	cwContent := ""
 	if m.isPlayingTitle != "" {
 		cwContent = lipgloss.NewStyle().Foreground(styles.PlexOrange).Render("\u25b7 "+styles.Truncate(m.isPlayingTitle, width-10)) + "\n\n  " + styles.RenderProgressBar(50, width-60)
+	} else if m.LibraryService != nil {
+		cwItems := m.LibraryService.ContinueWatching(1)
+		if len(cwItems) > 0 {
+			item := cwItems[0]
+			title := item.Title
+			if item.Type == domain.MediaTypeEpisode {
+				title = fmt.Sprintf("%s - S%02dE%02d - %s", item.ShowTitle, item.SeasonNum, item.EpisodeNum, item.Title)
+			}
+			progress := 0.0
+			if item.Duration > 0 {
+				progress = (float64(item.ViewOffset) / float64(item.Duration)) * 100
+			}
+			cwContent = lipgloss.NewStyle().Foreground(styles.PlexOrange).Render("\u25b7 "+styles.Truncate(title, width-10)) + "\n\n  " + styles.RenderProgressBar(progress, width-60)
+		} else {
+			cwContent = "\n\n  No items in progress"
+		}
 	} else {
-		// TODO: Fetch in-progress media items from playback service
 		cwContent = "\n\n  No items in progress"
 	}
 	cwBox := components.RenderBtopBox(" Continue Watching ", "", cwContent, width, row1Height, styles.Green)
 
 	// Recently Added
-	// TODO: Fetch recently added items from library service
-	raContent := "\n\n  No recently added items"
+	raContent := ""
+	if m.LibraryService != nil {
+		raItems := m.LibraryService.RecentlyAdded(5)
+		var raCol1 []string
+		var raCol2 []string
+		for _, item := range raItems {
+			title := item.GetTitle()
+			if item.GetItemType() == "episode" {
+				if mi, ok := item.(*domain.MediaItem); ok && mi.ShowTitle != "" {
+					title = mi.ShowTitle + " - " + title
+				}
+			}
+			raCol1 = append(raCol1, "• "+styles.Truncate(title, halfWidth-15))
+			
+			desc := item.GetItemType()
+			if item.GetYear() > 0 {
+				desc = fmt.Sprintf("%d", item.GetYear())
+			}
+			raCol2 = append(raCol2, desc)
+		}
+		if len(raCol1) > 0 {
+			raContent = createListLayout(halfWidth-2, row2Height-2, raCol1, raCol2, lipgloss.NewStyle().Foreground(styles.DimGray), -1)
+		} else {
+			raContent = "\n\n  No recently added items"
+		}
+	} else {
+		raContent = "\n\n  No recently added items"
+	}
 	raBox := components.RenderBtopBox(" Recently Added ", "", raContent, halfWidth, row2Height, styles.Blue)
 
 	// Libraries
@@ -170,8 +212,32 @@ func (m Model) renderDashboardCenterCol(width, height int) string {
 	actBox := components.RenderBtopBox(" Recent Activity ", "", actContent, halfWidth, row3Height, styles.PlexOrange)
 
 	// On Deck
-	// TODO: Fetch next-up episodes for currently watching series
-	odContent := "\n\n  No items on deck"
+	odContent := ""
+	if m.LibraryService != nil {
+		odItems := m.LibraryService.SmartFiltered("unwatched", 5)
+		var odCol1 []string
+		var odCol2 []string
+		for _, item := range odItems {
+			title := item.Title
+			if item.Type == domain.MediaTypeEpisode {
+				title = fmt.Sprintf("%s S%02dE%02d", item.ShowTitle, item.SeasonNum, item.EpisodeNum)
+			}
+			odCol1 = append(odCol1, "• "+styles.Truncate(title, otherHalfWidth-15))
+			
+			desc := ""
+			if item.Duration > 0 {
+				desc = fmt.Sprintf("%d min", int(item.Duration.Minutes()))
+			}
+			odCol2 = append(odCol2, desc)
+		}
+		if len(odCol1) > 0 {
+			odContent = createListLayout(otherHalfWidth-2, row3Height-2, odCol1, odCol2, lipgloss.NewStyle().Foreground(styles.DimGray), -1)
+		} else {
+			odContent = "\n\n  No items on deck"
+		}
+	} else {
+		odContent = "\n\n  No items on deck"
+	}
 	odBox := components.RenderBtopBox(" On Deck ", "", odContent, otherHalfWidth, row3Height, styles.Green)
 
 	row3 := lipgloss.JoinHorizontal(lipgloss.Top, actBox, odBox)
