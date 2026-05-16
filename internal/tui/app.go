@@ -19,7 +19,8 @@ import (
 type ApplicationState int
 
 const (
-	StateBrowsing ApplicationState = iota
+	StateDashboard ApplicationState = iota
+	StateBrowsing
 	StateHelp
 	StateConfirmLogout
 	StateConfirmResume
@@ -163,7 +164,7 @@ func NewModel(
 	version string,
 ) Model {
 	return Model{
-		State:           StateBrowsing,
+		State:           StateDashboard,
 		Store:           store,
 		LibraryService:  librarySvc,
 		PlaylistService: playlistSvc,

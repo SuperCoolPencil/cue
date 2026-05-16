@@ -22,6 +22,10 @@ func (m Model) View() string {
 		return "Loading..."
 	}
 
+	if m.State == StateDashboard {
+		return m.renderDashboard()
+	}
+
 	// Handle modal states
 	if m.State == StateHelp {
 		return m.renderHelp()
