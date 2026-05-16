@@ -38,7 +38,10 @@ func (m Model) View() string {
 		return m.renderResumeConfirmation()
 	}
 
-	contentHeight := m.Height - ChromeHeight
+	header := m.renderHeader()
+	headerHeight := lipgloss.Height(header)
+	
+	contentHeight := m.Height - ChromeHeight - headerHeight
 	stackLen := m.ColumnStack.Len()
 	layout := m.calculateColumnLayout(m.Width)
 
@@ -141,6 +144,7 @@ func (m Model) View() string {
 	// Combine all
 	view := lipgloss.JoinVertical(
 		lipgloss.Left,
+		header,
 		content,
 		footer,
 	)
@@ -532,4 +536,16 @@ func (m Model) renderLogoutConfirmation() string {
 		"Log Out?",
 		"This will clear your credentials,\nserver URL, and all cached data.",
 		"Y  Yes", "N  No", "")
+}
+
+func (m Model) renderHeader() string {
+	cueLogo := " \u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2557   \u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\n" +
+		"\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255d\u2588\u2588\u2551   \u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255d\n" +
+		"\u2588\u2588\u2551     \u2588\u2588\u2551   \u2588\u2588\u2551\u2588\u2588\u2588\u2588\u2588\u2557  \n" +
+		"\u2588\u2588\u2551     \u2588\u2588\u2551   \u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u255d  \n" +
+		"\u255a\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u255a\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\n" +
+		" \u255a\u2550\u2550\u2550\u2550\u2550\u255d \u255a\u2550\u2550\u2550\u2550\u2550\u255d \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u255d"
+
+	logoStyle := lipgloss.NewStyle().Foreground(styles.PlexOrange).Bold(true)
+	return logoStyle.Render(cueLogo) + "\n"
 }

@@ -58,9 +58,9 @@ var (
 
 // Raw watch status characters (unstyled)
 const (
-	UnplayedChar   = "○"
-	InProgressChar = "◐"
-	PlayedChar     = "✓"
+	UnplayedChar   = "\u25cb" // ○
+	InProgressChar = "\u25d0" // ◐
+	PlayedChar     = "\u2713" // ✓
 )
 
 // Watch status indicator styles
@@ -146,7 +146,7 @@ var (
 )
 
 // SpinnerFrames contains the animation frames for the loading spinner
-var SpinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+var SpinnerFrames = []string{"\u280b", "\u2819", "\u2839", "\u2838", "\u283c", "\u2834", "\u2826", "\u2827", "\u2807", "\u280f"}
 
 // Filter styles
 var (
@@ -221,10 +221,10 @@ func RenderProgressBar(percent float64, width int) string {
 
 	bar := ""
 	for i := 0; i < filled; i++ {
-		bar += ProgressFullStyle.Render("━")
+		bar += ProgressFullStyle.Render("\u2501")
 	}
 	for i := filled; i < width; i++ {
-		bar += ProgressEmptyStyle.Render("─")
+		bar += ProgressEmptyStyle.Render("\u2500")
 	}
 
 	return bar

@@ -59,8 +59,8 @@ func (i *Inspector) SetLibraryStates(states map[string]LibrarySyncState) {
 func (i *Inspector) SetSize(width, height int) {
 	i.width = width
 	i.height = height
-	// Calculate max visible lines (reserve space for border, scroll indicators, and title)
-	i.maxVisible = height - InspectorBorderHeight - InspectorScrollIndicators - 2 // -1 for title, -1 for blank line
+	// Calculate max visible lines (reserve space for border and scroll indicators)
+	i.maxVisible = height - InspectorBorderHeight - InspectorScrollIndicators
 	if i.maxVisible < 1 {
 		i.maxVisible = 1
 	}
@@ -103,20 +103,17 @@ func (i Inspector) Update(msg tea.Msg) (Inspector, tea.Cmd) {
 
 // View renders the component
 func (i Inspector) View() string {
-	style := styles.InactiveBorder
+	borderColor := styles.DimGray
 	if i.Focused {
-		style = styles.ActiveBorder
+		borderColor = styles.PlexOrange
 	}
 
-	// Border takes 2 chars (1 each side), leave 1 char safety margin
-	contentWidth := i.width - 3
+	// Border takes 2 chars (1 each side)
+	contentWidth := i.width - BorderFrameWidth
 	if contentWidth < 10 {
 		contentWidth = 10
 	}
 	content := i.renderInspector(contentWidth)
-
-	// Title line (styled, matching other columns)
-	titleLine := styles.AccentStyle.Render(styles.Truncate("Info", contentWidth))
 
 	// Three-zone layout: header is fixed, body scrolls, footer is fixed
 	headerLines := splitLines(content.header)
@@ -150,17 +147,15 @@ func (i Inspector) View() string {
 	// Scroll indicators for body only
 	header := " "
 	if offset > 0 {
-		header = styles.DimStyle.Render("↑ more")
+		header = styles.DimStyle.Render("\u2191 more") // ↑
 	}
 	footer := " "
 	if end < totalBodyLines {
-		footer = styles.DimStyle.Render("↓ more")
+		footer = styles.DimStyle.Render("\u2193 more") // ↓
 	}
 
-	// Assemble: title + header zone + scroll-up indicator + visible body + padding + scroll-down indicator + footer zone
+	// Assemble: header zone + scroll-up indicator + visible body + padding + scroll-down indicator + footer zone
 	var parts []string
-	parts = append(parts, titleLine)
-	parts = append(parts, "")
 
 	// Header zone (fixed)
 	if len(headerLines) > 0 && content.header != "" {
@@ -194,13 +189,7 @@ func (i Inspector) View() string {
 
 	rendered := strings.Join(parts, "\n")
 
-	// Subtract frame (border) size so total rendered size equals i.width x i.height
-	frameW, frameH := style.GetFrameSize()
-
-	return style.
-		Width(i.width - frameW).
-		Height(i.height - frameH).
-		Render(rendered)
+	return RenderBtopBox("Info", "", rendered, i.width, i.height, borderColor)
 }
 
 // renderInspector renders the inspector panel content as three zones

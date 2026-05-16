@@ -20,12 +20,12 @@ const (
 func RenderBtopBox(leftTitle, rightTitle string, content string, width, height int, borderColor lipgloss.Color) string {
 	// Border characters
 	const (
-		topLeft     = "╭"
-		topRight    = "╮"
-		bottomLeft  = "╰"
-		bottomRight = "╯"
-		horizontal  = "─"
-		vertical    = "│"
+		topLeft     = "\u256d"
+		topRight    = "\u256e"
+		bottomLeft  = "\u2570"
+		bottomRight = "\u256f"
+		horizontal  = "\u2500"
+		vertical    = "\u2502"
 	)
 
 	innerWidth := width - BorderFrameWidth

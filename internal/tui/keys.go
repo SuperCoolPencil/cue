@@ -23,6 +23,7 @@ type KeyMap struct {
 	Escape          key.Binding
 	Filter          key.Binding
 	GlobalSearch    key.Binding
+	Dashboard       key.Binding
 	Sort            key.Binding
 	Refresh         key.Binding
 	RefreshAll      key.Binding
@@ -111,6 +112,10 @@ func DefaultKeyMap() KeyMap {
 		GlobalSearch: key.NewBinding(
 			key.WithKeys("f"),
 			key.WithHelp("f", "global search"),
+		),
+		Dashboard: key.NewBinding(
+			key.WithKeys("d"),
+			key.WithHelp("d", "dashboard"),
 		),
 		Sort: key.NewBinding(
 			key.WithKeys("s"),

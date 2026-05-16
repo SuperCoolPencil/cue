@@ -15,6 +15,16 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	// Handle state-specific keys
 	switch m.State {
+	case StateDashboard:
+		if key.Matches(msg, Keys.Quit) {
+			return m, tea.Quit
+		}
+		if msg.String() == "l" || msg.String() == "L" {
+			m.State = StateBrowsing
+			return m, nil
+		}
+		return m, nil
+
 	case StateHelp:
 		if key.Matches(msg, Keys.Escape, Keys.Help, Keys.Quit) {
 			m.State = StateBrowsing
@@ -99,6 +109,11 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleFilter()
 	case key.Matches(msg, Keys.GlobalSearch):
 		return m.handleGlobalSearch()
+	case key.Matches(msg, Keys.Dashboard):
+		if m.State == StateBrowsing {
+			m.State = StateDashboard
+		}
+		return m, nil
 	case key.Matches(msg, Keys.Sort):
 		return m.handleSort()
 	case key.Matches(msg, Keys.Back):

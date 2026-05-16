@@ -210,20 +210,14 @@ func (c *ListColumn) Update(msg tea.Msg) (*ListColumn, tea.Cmd) {
 }
 
 func (c *ListColumn) View() string {
-	style := styles.InactiveBorder
+	borderColor := styles.DimGray
 	if c.focused && !c.inspector.Focused {
-		style = styles.ActiveBorder
+		borderColor = styles.PlexOrange
 	}
 
 	content := c.renderContent()
 
-	// Subtract frame (border) size so total rendered size equals c.width x c.height
-	frameW, frameH := style.GetFrameSize()
-
-	return style.
-		Width(c.width - frameW).
-		Height(c.height - frameH).
-		Render(content)
+	return RenderBtopBox(c.title, "", content, c.width, c.height, borderColor)
 }
 
 func (c *ListColumn) SetSize(width, height int) {
@@ -739,9 +733,9 @@ func (c *ListColumn) ClearFilter() {
 
 func (c *ListColumn) recalcMaxVisible() {
 	// Interior height = total - border (top+bottom)
-	// Reserve space for: title line + scroll indicators (header + footer)
+	// Reserve space for: scroll indicators (header + footer)
 	interiorHeight := c.height - BorderHeight
-	c.maxVisible = interiorHeight - ScrollIndicatorLines - 1 - 1 // -1 for title, -1 for padding/safety
+	c.maxVisible = interiorHeight - ScrollIndicatorLines - 1 // -1 for padding/safety
 	// Reserve space for filter bar when active
 	if c.filterActive {
 		c.maxVisible--
@@ -870,14 +864,11 @@ func (c *ListColumn) renderContent() string {
 		itemWidth = 10
 	}
 
-	// Title line (styled, truncated to fit column width)
-	titleLine := styles.AccentStyle.Render(styles.Truncate(c.title, itemWidth))
-
 	// Loading state
 	if c.loading {
 		spinner := styles.SpinnerFrames[c.spinnerFrame%len(styles.SpinnerFrames)]
 		loadingLine := styles.DimStyle.Render(spinner + " Loading...")
-		return titleLine + "\n" + " " + "\n" + loadingLine + "\n" + " "
+		return " \n" + loadingLine + "\n "
 	}
 
 	count := c.ItemCount()
@@ -886,7 +877,7 @@ func (c *ListColumn) renderContent() string {
 		if c.filterActive && c.filterQuery != "" {
 			emptyMsg = styles.DimStyle.Render("No matches")
 		}
-		content := titleLine + "\n" + " " + "\n" + emptyMsg + "\n" + " "
+		content := " \n" + emptyMsg + "\n "
 		// Add filter bar if active so user can see what they're typing
 		if c.filterActive {
 			content += "\n" + c.renderFilterBar(itemWidth)
@@ -911,17 +902,17 @@ func (c *ListColumn) renderContent() string {
 	// ALWAYS reserve space for header (even if empty) to prevent layout shifts
 	header := " "
 	if c.offset > 0 {
-		header = styles.DimStyle.Render("↑ more")
+		header = styles.DimStyle.Render("\u2191 more") // ↑
 	}
 
 	// ALWAYS reserve space for footer (even if empty)
 	footer := " "
 	if end < count {
-		footer = styles.DimStyle.Render("↓ more")
+		footer = styles.DimStyle.Render("\u2193 more") // ↓
 	}
 
 	content := strings.Join(lines, "\n")
-	content = titleLine + "\n" + header + "\n" + content + "\n" + footer
+	content = header + "\n" + content + "\n" + footer
 
 	// Add filter bar at bottom if active
 	if c.filterActive {
