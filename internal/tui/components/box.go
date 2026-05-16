@@ -33,6 +33,13 @@ func RenderBtopBox(leftTitle, rightTitle string, content string, width, height i
 		innerWidth = 1
 	}
 
+	if leftTitle != "" {
+		leftTitle = " " + leftTitle + " "
+	}
+	if rightTitle != "" {
+		rightTitle = " " + rightTitle + " "
+	}
+
 	leftTitleWidth := lipgloss.Width(leftTitle)
 	rightTitleWidth := lipgloss.Width(rightTitle)
 

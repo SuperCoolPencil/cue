@@ -177,24 +177,26 @@ func Truncate(s string, width int) string {
 	if width <= 0 {
 		return ""
 	}
-	if len(s) <= width {
+	runes := []rune(s)
+	if len(runes) <= width {
 		return s
 	}
 	if width <= 3 {
-		if width > len(s) {
+		if width > len(runes) {
 			return s
 		}
-		return s[:width]
+		return string(runes[:width])
 	}
-	return s[:width-3] + "..."
+	return string(runes[:width-3]) + "..."
 }
 
 // Pad pads a string to the given width
 func Pad(s string, width int) string {
-	if len(s) >= width {
-		return s[:width]
+	runes := []rune(s)
+	if len(runes) >= width {
+		return string(runes[:width])
 	}
-	return s + spaces(width-len(s))
+	return s + spaces(width-len(runes))
 }
 
 func spaces(n int) string {

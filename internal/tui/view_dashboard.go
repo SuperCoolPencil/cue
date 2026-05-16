@@ -32,15 +32,6 @@ func (m Model) renderDashboard() string {
 }
 
 func createDashboardTable(width, height int, columns []table.Column, rows []table.Row, cursor int) string {
-	// Truncate rows to prevent overflow
-	for i := range rows {
-		for j := range rows[i] {
-			if lipgloss.Width(rows[i][j]) > columns[j].Width {
-				rows[i][j] = styles.Truncate(rows[i][j], columns[j].Width)
-			}
-		}
-	}
-
 	t := table.New(
 		table.WithColumns(columns),
 		table.WithRows(rows),
@@ -49,7 +40,7 @@ func createDashboardTable(width, height int, columns []table.Column, rows []tabl
 	s := table.DefaultStyles()
 	s.Header = lipgloss.NewStyle().Height(0).Margin(0).Padding(0)
 	s.Cell = lipgloss.NewStyle().PaddingLeft(2)
-	
+
 	if cursor >= 0 {
 		s.Selected = lipgloss.NewStyle().Foreground(styles.PlexOrange).PaddingLeft(2).Bold(true)
 		t.SetCursor(cursor)
@@ -58,7 +49,7 @@ func createDashboardTable(width, height int, columns []table.Column, rows []tabl
 		t.SetStyles(s)
 	}
 	t.SetStyles(s)
-	
+
 	return t.View()
 }
 
@@ -67,20 +58,21 @@ func (m Model) renderDashboardLeftCol(width, height int) string {
 	shortcutsHeight := height - menuHeight
 
 	// Main Menu
-	menuCols := []table.Column{{Title: "", Width: width - 8}, {Title: "", Width: 4}}
+	menuCols := []table.Column{{Title: "", Width: width - 10}, {Title: "", Width: 6}}
+	keyStyle := lipgloss.NewStyle().Foreground(styles.DimGray)
 	menuRows := []table.Row{
 		{"Dashboard", ""},
-		{"Libraries", "[L]"},
-		{"Now Playing", "[P]"},
-		{"Discover", "[D]"},
-		{"Users", "[U]"},
-		{"Activity", "[A]"},
-		{"Playlists", "[Y]"},
-		{"Settings", "[S]"},
-		{"Plugins", "[G]"},
-		{"Help", "[H]"},
+		{"Libraries", keyStyle.Render("[L]")},
+		{"Now Playing", keyStyle.Render("[P]")},
+		{"Discover", keyStyle.Render("[D]")},
+		{"Users", keyStyle.Render("[U]")},
+		{"Activity", keyStyle.Render("[A]")},
+		{"Playlists", keyStyle.Render("[Y]")},
+		{"Settings", keyStyle.Render("[S]")},
+		{"Plugins", keyStyle.Render("[G]")},
+		{"Help", keyStyle.Render("[H]")},
 	}
-	
+
 	// Determine if the menu is focused
 	cursor := -1
 	borderColor := styles.DimGray
@@ -88,21 +80,21 @@ func (m Model) renderDashboardLeftCol(width, height int) string {
 		cursor = m.SelectedMenuIdx
 		borderColor = styles.PlexOrange
 	}
-	
+
 	menuStr := createDashboardTable(width, menuHeight, menuCols, menuRows, cursor)
-	menuBox := components.RenderBtopBox("MAIN MENU", "", menuStr, width, menuHeight, borderColor)
+	menuBox := components.RenderBtopBox(" Main Menu ", "", menuStr, width, menuHeight, borderColor)
 
 	// Shortcuts
-	scCols := []table.Column{{Title: "", Width: width - 8}, {Title: "", Width: 4}}
+	scCols := []table.Column{{Title: "", Width: width - 10}, {Title: "", Width: 6}}
 	scRows := []table.Row{
-		{"Search", "[/]"},
-		{"Go to Library", "[g]"},
-		{"Refresh", "[r]"},
-		{"Global Search", "[f]"},
-		{"Command Palette", "[:]"},
+		{"Search", keyStyle.Render("[/]")},
+		{"Go to Library", keyStyle.Render("[g]")},
+		{"Refresh", keyStyle.Render("[r]")},
+		{"Global Search", keyStyle.Render("[f]")},
+		{"Command Palette", keyStyle.Render("[:]")},
 	}
 	shortcutsStr := createDashboardTable(width, shortcutsHeight, scCols, scRows, -1)
-	shortcutsBox := components.RenderBtopBox("SHORTCUTS", "", shortcutsStr, width, shortcutsHeight, styles.DimGray)
+	shortcutsBox := components.RenderBtopBox(" Shortcuts ", "", shortcutsStr, width, shortcutsHeight, styles.DimGray)
 
 	return lipgloss.JoinVertical(lipgloss.Left, menuBox, shortcutsBox)
 }
@@ -122,15 +114,16 @@ func (m Model) renderDashboardCenterCol(width, height int) string {
 	} else {
 		cwContent = "\n\n  No items in progress"
 	}
-	cwBox := components.RenderBtopBox("CONTINUE WATCHING", "", cwContent, width, row1Height, styles.Green)
+	cwBox := components.RenderBtopBox(" Continue Watching ", "", cwContent, width, row1Height, styles.Green)
 
 	// Recently Added
 	raContent := "\n\n  No recently added items"
-	raBox := components.RenderBtopBox("RECENTLY ADDED", "", raContent, halfWidth, row2Height, styles.Blue)
+	raBox := components.RenderBtopBox(" Recently Added ", "", raContent, halfWidth, row2Height, styles.Blue)
 
 	// Libraries
-	libCols := []table.Column{{Title: "", Width: otherHalfWidth - 8}, {Title: "", Width: 4}}
+	libCols := []table.Column{{Title: "", Width: otherHalfWidth - 10}, {Title: "", Width: 6}}
 	var libRows []table.Row
+	countStyle := lipgloss.NewStyle().Foreground(styles.DimGray)
 	for i, lib := range m.Libraries {
 		if i > 5 {
 			break
@@ -139,7 +132,7 @@ func (m Model) renderDashboardCenterCol(width, height int) string {
 		if state, ok := m.LibraryStates[lib.ID]; ok {
 			count = state.Loaded
 		}
-		libRows = append(libRows, table.Row{"\u2022 " + lib.Name, fmt.Sprintf("%d", count)})
+		libRows = append(libRows, table.Row{"\u2022 " + lib.Name, countStyle.Render(fmt.Sprintf("%d", count))})
 	}
 	libContent := ""
 	if len(libRows) > 0 {
@@ -147,7 +140,7 @@ func (m Model) renderDashboardCenterCol(width, height int) string {
 	} else {
 		libContent = "\n\n  No libraries loaded"
 	}
-	libBox := components.RenderBtopBox("LIBRARIES", "", libContent, otherHalfWidth, row2Height, styles.PlexOrange)
+	libBox := components.RenderBtopBox(" Libraries ", "", libContent, otherHalfWidth, row2Height, styles.PlexOrange)
 
 	row2 := lipgloss.JoinHorizontal(lipgloss.Top, raBox, libBox)
 
@@ -158,11 +151,11 @@ func (m Model) renderDashboardCenterCol(width, height int) string {
 	} else {
 		actContent = "\n\n  No recent activity"
 	}
-	actBox := components.RenderBtopBox("RECENT ACTIVITY", "", actContent, halfWidth, row3Height, styles.PlexOrange)
+	actBox := components.RenderBtopBox(" Recent Activity ", "", actContent, halfWidth, row3Height, styles.PlexOrange)
 
 	// On Deck
 	odContent := "\n\n  No items on deck"
-	odBox := components.RenderBtopBox("ON DECK", "", odContent, otherHalfWidth, row3Height, styles.Green)
+	odBox := components.RenderBtopBox(" On Deck ", "", odContent, otherHalfWidth, row3Height, styles.Green)
 
 	row3 := lipgloss.JoinHorizontal(lipgloss.Top, actBox, odBox)
 
@@ -180,21 +173,22 @@ func (m Model) renderDashboardRightCol(width, height int) string {
 	} else {
 		npContent = "\n\n  Nothing is currently playing"
 	}
-	
-	npBox := components.RenderBtopBox("NOW PLAYING", "", npContent, width, npHeight, styles.PlexOrange)
+
+	npBox := components.RenderBtopBox(" Now Playing ", "", npContent, width, npHeight, styles.PlexOrange)
 
 	// Quick Actions
-	qaCols := []table.Column{{Title: "", Width: width - 4}}
+	qaCols := []table.Column{{Title: "", Width: 6}, {Title: "", Width: width - 10}}
+	keyStyle := lipgloss.NewStyle().Foreground(styles.DimGray)
 	qaRows := []table.Row{
-		{"[R] Refresh Libraries"},
-		{"[B] Backup Database"},
-		{"[C] Clean Bundles"},
-		{"[U] Update Libraries"},
-		{"[O] Optimize Database"},
-		{"[X] View Logs"},
+		{keyStyle.Render("[R]"), "Refresh Libraries"},
+		{keyStyle.Render("[B]"), "Backup Database"},
+		{keyStyle.Render("[C]"), "Clean Bundles"},
+		{keyStyle.Render("[U]"), "Update Libraries"},
+		{keyStyle.Render("[O]"), "Optimize Database"},
+		{keyStyle.Render("[X]"), "View Logs"},
 	}
 	qaContent := createDashboardTable(width, qaHeight, qaCols, qaRows, -1)
-	qaBox := components.RenderBtopBox("QUICK ACTIONS", "", qaContent, width, qaHeight, styles.Blue)
+	qaBox := components.RenderBtopBox(" Quick Actions ", "", qaContent, width, qaHeight, styles.Blue)
 
 	return lipgloss.JoinVertical(lipgloss.Left, npBox, qaBox)
 }
