@@ -38,6 +38,7 @@ func (m Model) configEntries() []domain.Library {
 	showCounts := "off"
 	hideWatched := "off"
 	autoplay := "off"
+	playNextOnSelect := "off"
 	if m.UIConfig.ShowWatchStatus {
 		showWatch = "on"
 	}
@@ -50,12 +51,16 @@ func (m Model) configEntries() []domain.Library {
 	if m.UIConfig.Autoplay {
 		autoplay = "on"
 	}
+	if m.UIConfig.PlayNextOnSelect {
+		playNextOnSelect = "on"
+	}
 	return []domain.Library{
 		{ID: "__config_player__", Name: "Player: " + m.playerName(), Type: "config"},
 		{ID: "__config_watch__", Name: "Watch indicators: " + showWatch, Type: "config"},
 		{ID: "__config_counts__", Name: "Library counts: " + showCounts, Type: "config"},
 		{ID: "__config_hide_watched__", Name: "Hide watched: " + hideWatched, Type: "config"},
 		{ID: "__config_autoplay__", Name: "Autoplay: " + autoplay, Type: "config"},
+		{ID: "__config_play_next_on_select__", Name: "Play next episode on select: " + playNextOnSelect, Type: "config"},
 		{ID: "__config_os__", Name: "Platform: " + runtime.GOOS, Type: "config"},
 	}
 }

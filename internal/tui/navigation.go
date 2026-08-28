@@ -451,6 +451,21 @@ func (m *Model) drillVirtualLibrary(v domain.Library, cursor int) *drillResult {
 		}
 		m.StatusMsg = "Saved autoplay setting"
 		return &drillResult{AwaitKind: AwaitNone}
+	case "__config_play_next_on_select__":
+		m.UIConfig.PlayNextOnSelect = !m.UIConfig.PlayNextOnSelect
+		if m.AppConfig != nil {
+			m.AppConfig.UI.PlayNextOnSelect = m.UIConfig.PlayNextOnSelect
+			if err := config.SaveConfig(m.AppConfig); err != nil {
+				m.StatusMsg = fmt.Sprintf("Failed to save config: %v", err)
+				m.StatusIsErr = true
+				return &drillResult{AwaitKind: AwaitNone}
+			}
+		}
+		if top := m.ColumnStack.Top(); top != nil {
+			top.SetItems(m.configEntries())
+		}
+		m.StatusMsg = "Saved play-next-on-select setting"
+		return &drillResult{AwaitKind: AwaitNone}
 	case "__cache_clear__":
 		m.LibraryService.InvalidateAll()
 		m.PlaylistService.ClearQueue()

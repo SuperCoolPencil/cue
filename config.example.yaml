@@ -34,6 +34,8 @@ ui:
   show_watch_status: true
   # Keep library item counts visible after sync completes
   show_library_counts: false
+  # When pressing Enter on a show, play the next unplayed episode instead of opening seasons
+  play_next_on_select: true
 
 # Logging Configuration
 logging:

@@ -60,3 +60,9 @@ func TestLoadConfigGeneratesDeviceID(t *testing.T) {
 		t.Fatalf("token lost when persisting device ID:\n%s", data)
 	}
 }
+
+func TestDefaultConfigEnablesPlayNextOnSelect(t *testing.T) {
+	if !DefaultConfig().UI.PlayNextOnSelect {
+		t.Fatal("PlayNextOnSelect should be enabled by default")
+	}
+}

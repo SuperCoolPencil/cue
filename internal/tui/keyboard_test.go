@@ -76,3 +76,28 @@ func TestNextEpisodeKeybinding(t *testing.T) {
 		t.Fatalf("selected item = %#v, want ep2", item)
 	}
 }
+
+func TestEnterOnShowDirectPlaysWhenEnabled(t *testing.T) {
+	col := components.NewListColumn(components.ColumnTypeShows, "Shows")
+	col.SetItems([]*domain.Show{{ID: "show1", Title: "Show", LibraryID: "library1"}})
+	col.SetFocused(true)
+
+	model := Model{
+		State:       StateBrowsing,
+		ColumnStack: NewColumnStack(),
+		UIConfig:    config.UIConfig{PlayNextOnSelect: true},
+	}
+	model.ColumnStack.Push(col, 0)
+
+	updated, cmd := model.handleEnter()
+	got := updated.(Model)
+	if cmd == nil {
+		t.Fatal("handleEnter() returned nil command")
+	}
+	if got.ColumnStack.Len() != 1 {
+		t.Fatalf("column stack length = %d, want 1 (show should not be opened)", got.ColumnStack.Len())
+	}
+	if got.StatusMsg != "Finding next episode for Show..." {
+		t.Fatalf("status = %q", got.StatusMsg)
+	}
+}

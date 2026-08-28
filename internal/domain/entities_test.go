@@ -71,3 +71,52 @@ func TestMediaItemResolution(t *testing.T) {
 		}
 	}
 }
+
+func TestNextUnplayedEpisodeAfterLastPlayed(t *testing.T) {
+	tests := []struct {
+		name     string
+		episodes []*MediaItem
+		wantID   string
+	}{
+		{
+			name: "skips unplayed episodes before the latest played episode",
+			episodes: []*MediaItem{
+				{ID: "s2e2", SeasonNum: 2, EpisodeNum: 2, IsPlayed: false},
+				{ID: "s1e1", SeasonNum: 1, EpisodeNum: 1, IsPlayed: true},
+				{ID: "s1e2", SeasonNum: 1, EpisodeNum: 2, IsPlayed: false}, // intentionally skipped
+				{ID: "s2e1", SeasonNum: 2, EpisodeNum: 1, IsPlayed: true},
+			},
+			wantID: "s2e2",
+		},
+		{
+			name: "starts at the first unplayed episode when none have been played",
+			episodes: []*MediaItem{
+				{ID: "s1e2", SeasonNum: 1, EpisodeNum: 2},
+				{ID: "s1e1", SeasonNum: 1, EpisodeNum: 1},
+			},
+			wantID: "s1e1",
+		},
+		{
+			name: "returns nil when no unplayed episode follows the latest played episode",
+			episodes: []*MediaItem{
+				{ID: "s1e1", SeasonNum: 1, EpisodeNum: 1},
+				{ID: "s1e2", SeasonNum: 1, EpisodeNum: 2, IsPlayed: true},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := NextUnplayedEpisodeAfterLastPlayed(tt.episodes)
+			if tt.wantID == "" {
+				if got != nil {
+					t.Fatalf("NextUnplayedEpisodeAfterLastPlayed() = %q, want nil", got.ID)
+				}
+				return
+			}
+			if got == nil || got.ID != tt.wantID {
+				t.Fatalf("NextUnplayedEpisodeAfterLastPlayed() = %#v, want %q", got, tt.wantID)
+			}
+		})
+	}
+}

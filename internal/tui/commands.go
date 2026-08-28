@@ -503,15 +503,35 @@ func DeleteMediaItemCmd(svc mediaserver.MediaSource, itemID, libID string) tea.C
 	}
 }
 
-// DirectPlayShowCmd fetches the next up episode for a show and plays it
-func DirectPlayShowCmd(svc mediaserver.MediaSource, playerSvc *player.Service, showID string, autoplay bool) tea.Cmd {
+// DirectPlayShowCmd finds the first unplayed episode after the latest played
+// episode and starts it. Episodes left unplayed before the latest played one
+// are intentionally skipped, so users can permanently skip episodes.
+func DirectPlayShowCmd(svc mediaserver.MediaSource, playerSvc *player.Service, showID, libraryID string, autoplay bool) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		episode, err := svc.GetNextUp(ctx, showID)
+		seasons, err := svc.GetSeasons(ctx, showID)
 		if err != nil {
-			return ErrMsg{Err: err, Context: "finding next episode to play"}
+			return ErrMsg{Err: err, Context: "loading seasons for next episode"}
+		}
+		var episodes []*domain.MediaItem
+		for _, season := range seasons {
+			seasonEpisodes, err := svc.GetEpisodes(ctx, season.ID)
+			if err != nil {
+				return ErrMsg{Err: err, Context: "loading episodes for next episode"}
+			}
+			for _, episode := range seasonEpisodes {
+				if episode.LibraryID == "" {
+					episode.LibraryID = libraryID
+				}
+			}
+			episodes = append(episodes, seasonEpisodes...)
+		}
+
+		episode := domain.NextUnplayedEpisodeAfterLastPlayed(episodes)
+		if episode == nil {
+			return ErrMsg{Err: domain.ErrItemNotFound, Context: "finding next episode to play"}
 		}
 
 		// Return a command that plays the found episode

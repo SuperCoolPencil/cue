@@ -1,6 +1,40 @@
 package domain
 
-import "context"
+import (
+	"context"
+	"sort"
+)
+
+// NextUnplayedEpisodeAfterLastPlayed returns the first unplayed episode after
+// the latest played one in episode order. This deliberately ignores older
+// unplayed episodes: they may have been skipped intentionally.
+func NextUnplayedEpisodeAfterLastPlayed(episodes []*MediaItem) *MediaItem {
+	ordered := make([]*MediaItem, 0, len(episodes))
+	for _, episode := range episodes {
+		if episode != nil {
+			ordered = append(ordered, episode)
+		}
+	}
+	sort.SliceStable(ordered, func(i, j int) bool {
+		if ordered[i].SeasonNum != ordered[j].SeasonNum {
+			return ordered[i].SeasonNum < ordered[j].SeasonNum
+		}
+		return ordered[i].EpisodeNum < ordered[j].EpisodeNum
+	})
+
+	lastPlayed := -1
+	for i, episode := range ordered {
+		if episode.IsPlayed {
+			lastPlayed = i
+		}
+	}
+	for _, episode := range ordered[lastPlayed+1:] {
+		if !episode.IsPlayed {
+			return episode
+		}
+	}
+	return nil
+}
 
 // Subtitle describes an external subtitle track that the player should side-load.
 type Subtitle struct {

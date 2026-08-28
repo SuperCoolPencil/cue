@@ -52,6 +52,7 @@ type UIConfig struct {
 	ShowLibraryCounts bool `mapstructure:"show_library_counts"` // Keep library item counts visible after sync
 	HideWatched       bool `mapstructure:"hide_watched"`        // Hide items that are already watched
 	Autoplay          bool `mapstructure:"autoplay"`            // Automatically play the next episode
+	PlayNextOnSelect  bool `mapstructure:"play_next_on_select"` // Play the next episode when selecting a show
 }
 
 // LoggingConfig holds logging configuration
@@ -70,6 +71,7 @@ func DefaultConfig() *Config {
 			ShowLibraryCounts: false,
 			HideWatched:       false,
 			Autoplay:          true,
+			PlayNextOnSelect:  true,
 		},
 		Logging: LoggingConfig{
 			File:  defaultLogPath(),
@@ -182,6 +184,7 @@ func SaveConfig(cfg *Config) error {
 	viper.Set("ui.show_library_counts", cfg.UI.ShowLibraryCounts)
 	viper.Set("ui.hide_watched", cfg.UI.HideWatched)
 	viper.Set("ui.autoplay", cfg.UI.Autoplay)
+	viper.Set("ui.play_next_on_select", cfg.UI.PlayNextOnSelect)
 
 	// Set logging fields
 	viper.Set("logging.file", cfg.Logging.File)

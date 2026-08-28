@@ -49,6 +49,7 @@ You'll be prompted to enter your server URL. Cue automatically detects whether i
 | `←` `→` `h` `l` | Navigate left/right (columns) |
 | `Enter` | Play/Resume item |
 | `p` | Play from start |
+| `Shift+Enter` | Play the next unplayed episode of a selected show |
 | `w` / `u` | Mark watched / unwatched |
 | `f` | Global search |
 | `/` | Local filter (current column) |
@@ -63,6 +64,7 @@ You'll be prompted to enter your server URL. Cue automatically detects whether i
 | `g` / `G` | Jump to top / bottom |
 | `Ctrl+u` / `d` | Page up / half-page down |
 | `Autoplay` | Toggle automatic next episode in Config menu |
+| `Play next episode on select` | Make Enter on a show play its next episode instead of opening seasons |
 | `Hide watched` | Toggle visibility of watched items in Config menu |
 | `L` | Logout |
 | `?` | Show help |
