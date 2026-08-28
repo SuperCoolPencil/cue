@@ -595,6 +595,13 @@ func (c *Client) UpdateProgress(ctx context.Context, itemID string, positionMs i
 	return nil
 }
 
+// ReportTimeline is a no-op for Jellyfin: cue already reports progress through
+// the session-aware /Sessions/Playing/Progress endpoint (see UpdateProgress),
+// and Jellyfin tracks the live session itself without a separate timeline call.
+func (c *Client) ReportTimeline(ctx context.Context, state, ratingKey string, timeMs, durationMs int64) error {
+	return nil
+}
+
 // GetPlaylists returns all user playlists
 func (c *Client) GetPlaylists(ctx context.Context) ([]*domain.Playlist, error) {
 	query := url.Values{}

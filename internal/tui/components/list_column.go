@@ -69,6 +69,7 @@ type ListColumn struct {
 	showWatchStatus   bool // Whether to show watch status indicators
 	showLibraryCounts bool // Whether to keep library item counts visible after sync
 	hideWatched       bool // Whether to hide watched items from the list
+	showShowTitle     bool // Whether to show the series name for episodes (Continue Watching)
 
 	// Content identity for race condition prevention
 	contentID string
@@ -376,6 +377,11 @@ func (c *ListColumn) SetItems(rawItems interface{}) {
 			c.items = WrapPlaylistItems(v)
 		case c.columnType == ColumnTypeEpisodes:
 			c.items = WrapEpisodes(v)
+		case mediaItemsAreMixed(v):
+			// Continue Watching can contain both movies and episodes. Keep it mixed
+			// instead of selecting a renderer based solely on the first item.
+			c.items = WrapMovies(v)
+			c.columnType = ColumnTypeMixed
 		case len(v) > 0 && v[0].Type == domain.MediaTypeEpisode:
 			c.items = WrapEpisodes(v)
 			c.columnType = ColumnTypeEpisodes
@@ -576,6 +582,12 @@ func (c *ListColumn) SetShowLibraryCounts(show bool) {
 func (c *ListColumn) SetHideWatched(hide bool) {
 	c.hideWatched = hide
 	c.applyFilter()
+}
+
+// SetShowShowTitle sets whether episodes should display their series name
+// (used by the Continue Watching virtual library).
+func (c *ListColumn) SetShowShowTitle(show bool) {
+	c.showShowTitle = show
 }
 
 // SetContentID sets the content identity for race condition prevention
@@ -1288,6 +1300,28 @@ func (c *ListColumn) renderEpisodeItem(item domain.MediaItem, selected bool, wid
 		indicatorChar = " "
 	}
 
+	// In Continue Watching, show the series name first: "Show - S01E05 Title"
+	if c.showShowTitle && item.ShowTitle != "" {
+		title := fmt.Sprintf("%s - %s %s", item.ShowTitle, item.EpisodeCode(), item.Title)
+
+		availableForTitle := width - 4
+		tag := c.sortTag(&item)
+		if tag != "" {
+			availableForTitle -= len(tag) + 1
+		}
+		if availableForTitle < 5 {
+			availableForTitle = 5
+		}
+		title = styles.Truncate(title, availableForTitle)
+
+		parts := appendSortTag([]styles.RowPart{
+			{Text: indicatorChar, Foreground: &indicatorFg},
+			{Text: " " + title, Foreground: nil},
+		}, tag, width)
+
+		return styles.RenderListRow(parts, selected, width)
+	}
+
 	code := item.EpisodeCode()
 	plexOrange := styles.PlexOrange
 
@@ -1416,9 +1450,12 @@ func (c *ListColumn) renderMixedItem(item domain.ListItem, selected bool, width 
 		indicatorChar = " "
 	}
 
-	// Build title with year
+	// Build title with year. A Continue Watching column can contain both
+	// movies and episodes, so format episodes with their series context here too.
 	title := item.GetTitle()
-	if year := item.GetYear(); year > 0 {
+	if mediaItem, ok := item.(*domain.MediaItem); ok && c.showShowTitle && mediaItem.Type == domain.MediaTypeEpisode && mediaItem.ShowTitle != "" {
+		title = fmt.Sprintf("%s - %s %s", mediaItem.ShowTitle, mediaItem.EpisodeCode(), mediaItem.Title)
+	} else if year := item.GetYear(); year > 0 {
 		title = fmt.Sprintf("%s (%d)", title, year)
 	}
 
@@ -1439,6 +1476,21 @@ func (c *ListColumn) renderMixedItem(item domain.ListItem, selected bool, width 
 	}, tag, width)
 
 	return styles.RenderListRow(parts, selected, width)
+}
+
+// mediaItemsAreMixed reports whether a media slice contains more than one type.
+func mediaItemsAreMixed(items []*domain.MediaItem) bool {
+	if len(items) < 2 {
+		return false
+	}
+
+	firstType := items[0].Type
+	for _, item := range items[1:] {
+		if item.Type != firstType {
+			return true
+		}
+	}
+	return false
 }
 
 // sortTag returns a right-aligned tag string for the current sort field, or "" if

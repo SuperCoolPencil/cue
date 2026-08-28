@@ -44,9 +44,5 @@ func dialMPV(socketPath string) (*mpvConn, error) {
 		return nil, fmt.Errorf("failed to connect to mpv IPC: %w", err)
 	}
 
-	return &mpvConn{
-		conn: conn,
-		enc:  json.NewEncoder(conn),
-		dec:  json.NewDecoder(bufio.NewReader(conn)),
-	}, nil
+	return initMPVConn(conn, json.NewEncoder(conn), json.NewDecoder(bufio.NewReader(conn))), nil
 }

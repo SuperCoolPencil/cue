@@ -798,7 +798,7 @@ func (s *Service) playItem(ctx context.Context, offset time.Duration, item domai
 	}
 
 	// Start monitoring progress for all resolved items
-	return s.scrobbler.Monitor(ctx, cmd, ipcSocket, actualStartIdx, filteredPlaybackItems...), nil
+	return s.scrobbler.Monitor(ctx, cmd, ipcSocket, actualStartIdx, offset.Milliseconds(), filteredPlaybackItems...), nil
 }
 
 // MarkWatched marks an item as fully watched

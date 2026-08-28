@@ -124,3 +124,9 @@ func TestLoadConfigGeneratesDeviceID(t *testing.T) {
 		t.Fatalf("config file mode = %o, want 600", perm)
 	}
 }
+
+func TestDefaultConfigEnablesPlayNextOnSelect(t *testing.T) {
+	if !DefaultConfig().UI.PlayNextOnSelect {
+		t.Fatal("PlayNextOnSelect should be enabled by default")
+	}
+}

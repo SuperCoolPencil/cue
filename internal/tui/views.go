@@ -286,6 +286,9 @@ func (m Model) renderFooter() string {
 		} else {
 			left = styles.DimStyle.Render(m.StatusMsg)
 		}
+	} else {
+		left = styles.AccentStyle.Render("↑↓") + styles.DimStyle.Render(" navigate  ") +
+			styles.AccentStyle.Render("←→") + styles.DimStyle.Render(" back/expand")
 	}
 
 	// Center section: context-specific hints based on column type
@@ -331,8 +334,8 @@ type helpEntry struct {
 // renderHelp renders the help screen
 func (m Model) renderHelp() string {
 	nav := []helpEntry{
-		{"j / k", "Up / Down"},
-		{"h / l", "Back / Drill in"},
+		{"j/k, ↑/↓", "Up / Down"},
+		{"h/l, ←/→", "Back / Drill in"},
 		{"g / Home", "First item"},
 		{"G / End", "Last item"},
 		{"PgUp/Dn", "Scroll page"},
@@ -342,6 +345,7 @@ func (m Model) renderHelp() string {
 	playback := []helpEntry{
 		{"Enter", "Play / Resume"},
 		{"p", "Play from start"},
+		{"Shift+Enter", "Next show episode"},
 		{"w", "Mark watched"},
 		{"u", "Mark unwatched"},
 		{"N", "Next episode"},
