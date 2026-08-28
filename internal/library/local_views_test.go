@@ -10,7 +10,7 @@ import (
 )
 
 func TestLocalViews(t *testing.T) {
-	st, err := store.NewLibraryStore("", "")
+	st, err := store.NewLibraryStore("", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +48,7 @@ func TestLocalViews(t *testing.T) {
 }
 
 func TestSmartFilteredShows(t *testing.T) {
-	st, err := store.NewLibraryStore("", "")
+	st, err := store.NewLibraryStore("", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +85,7 @@ func TestSmartFilteredShows(t *testing.T) {
 }
 
 func TestRecentlyAddedMixed(t *testing.T) {
-	st, err := store.NewLibraryStore("", "")
+	st, err := store.NewLibraryStore("", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}

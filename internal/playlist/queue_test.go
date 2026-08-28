@@ -9,7 +9,7 @@ import (
 )
 
 func TestQueueOperations(t *testing.T) {
-	st, err := store.NewLibraryStore("", "")
+	st, err := store.NewLibraryStore("", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}

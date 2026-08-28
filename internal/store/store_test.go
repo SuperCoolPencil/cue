@@ -1,14 +1,16 @@
 package store
 
 import (
+	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/SuperCoolPencil/cue/internal/domain"
 )
 
 func TestLibraryStorePersistsAndInvalidatesContent(t *testing.T) {
 	base := t.TempDir()
-	st, err := NewLibraryStore(base, "http://server")
+	st, err := NewLibraryStore(base, "http://server", "user")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -25,7 +27,7 @@ func TestLibraryStorePersistsAndInvalidatesContent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	reopened, err := NewLibraryStore(base, "http://server")
+	reopened, err := NewLibraryStore(base, "http://server", "user")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +54,7 @@ func TestLibraryStorePersistsAndInvalidatesContent(t *testing.T) {
 }
 
 func TestLibraryStoreMixedContentAndQueue(t *testing.T) {
-	st, err := NewLibraryStore("", "")
+	st, err := NewLibraryStore("", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +91,7 @@ func TestLibraryStoreMixedContentAndQueue(t *testing.T) {
 
 func seedStore(t *testing.T, dir string) *LibraryStore {
 	t.Helper()
-	s, err := NewLibraryStore(dir, "http://test")
+	s, err := NewLibraryStore(dir, "http://test", "user1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,6 +192,42 @@ func testWatchState(t *testing.T, s *LibraryStore) {
 
 func TestSetWatchStateBolt(t *testing.T) {
 	testWatchState(t, seedStore(t, t.TempDir()))
+}
+
+// Seasons/episodes have no server-side freshness signal; entries past the
+// TTL must read as cache misses so drill-downs refetch.
+func TestTVCacheTTL(t *testing.T) {
+	s := seedStore(t, "")
+
+	// Fresh write: served
+	if _, ok := s.GetEpisodes("lib2", "show1", "season1"); !ok {
+		t.Fatal("fresh episodes not served")
+	}
+	if _, ok := s.GetSeasons("lib2", "show1"); !ok {
+		t.Fatal("fresh seasons not served")
+	}
+
+	// Force-expire the episodes entry by rewriting its wrapper timestamp
+	data, _ := json.Marshal([]*domain.MediaItem{{ID: "ep1"}})
+	expired := timestamped{
+		FetchedAt: time.Now().Add(-tvCacheTTL - time.Hour).Unix(),
+		Data:      data,
+	}
+	if err := s.set(bucketEpisodes, "lib:lib2:show:show1:season:season1", expired); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, ok := s.GetEpisodes("lib2", "show1", "season1"); ok {
+		t.Fatal("expired episodes served from cache")
+	}
+
+	// Pre-TTL cache format (bare array, no wrapper) reads as a miss
+	if err := s.set(bucketEpisodes, "lib:l:show:s:season:x", []*domain.MediaItem{{ID: "old"}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := s.GetEpisodes("l", "s", "x"); ok {
+		t.Fatal("legacy unwrapped entry served instead of miss")
+	}
 }
 
 func TestSetWatchStateMemoryOnly(t *testing.T) {

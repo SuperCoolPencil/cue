@@ -742,13 +742,13 @@ func (m *Model) refreshCurrentView() tea.Cmd {
 	case components.ColumnTypeMovies:
 		if libCol := m.libraryColumn(); libCol != nil {
 			if lib := libCol.SelectedLibrary(); lib != nil {
-				cmds = append(cmds, LoadMoviesCmd(m.LibraryService, lib.ID))
+				cmds = append(cmds, LoadMoviesCmd(m.LibraryService, *lib))
 			}
 		}
 	case components.ColumnTypeShows:
 		if libCol := m.libraryColumn(); libCol != nil {
 			if lib := libCol.SelectedLibrary(); lib != nil {
-				cmds = append(cmds, LoadShowsCmd(m.LibraryService, lib.ID))
+				cmds = append(cmds, LoadShowsCmd(m.LibraryService, *lib))
 			}
 		}
 	case components.ColumnTypeSeasons:
@@ -767,19 +767,23 @@ func (m *Model) refreshCurrentView() tea.Cmd {
 		}
 		// ALSO reload the parent (Shows) to update counters
 		if showCol := m.ColumnStack.Get(m.ColumnStack.Len() - 3); showCol != nil && showCol.ColumnType() == components.ColumnTypeShows {
-			cmds = append(cmds, LoadShowsCmd(m.LibraryService, m.currentLibID))
+			if lib := m.findLibrary(m.currentLibID); lib != nil {
+				cmds = append(cmds, LoadShowsCmd(m.LibraryService, *lib))
+			}
 		}
 	case components.ColumnTypeSeasonEpisodes:
 		// Collapsible view: reload seasons for the show
 		cmds = append(cmds, LoadSeasonsCmd(m.LibraryService, m.currentLibID, m.currentShowID))
 		// ALSO reload the parent (Shows) to update counters
 		if showCol := m.ColumnStack.Get(m.ColumnStack.Len() - 2); showCol != nil && showCol.ColumnType() == components.ColumnTypeShows {
-			cmds = append(cmds, LoadShowsCmd(m.LibraryService, m.currentLibID))
+			if lib := m.findLibrary(m.currentLibID); lib != nil {
+				cmds = append(cmds, LoadShowsCmd(m.LibraryService, *lib))
+			}
 		}
 	case components.ColumnTypeMixed:
 		if libCol := m.libraryColumn(); libCol != nil {
 			if lib := libCol.SelectedLibrary(); lib != nil {
-				cmds = append(cmds, LoadMixedLibraryCmd(m.LibraryService, lib.ID))
+				cmds = append(cmds, LoadMixedLibraryCmd(m.LibraryService, *lib))
 			}
 		}
 	}

@@ -24,7 +24,7 @@ func TestVirtualLibraryEntries(t *testing.T) {
 }
 
 func TestDrillVirtualContinueWatching(t *testing.T) {
-	st, _ := store.NewLibraryStore("", "")
+	st, _ := store.NewLibraryStore("", "", "")
 	libs := []domain.Library{{ID: "movies", Name: "Movies", Type: "movie"}}
 	_ = st.SaveLibraries(libs)
 	_ = st.SaveMovies("movies", []*domain.MediaItem{{ID: "m1", Title: "Movie", ViewOffset: time.Minute}}, 1)

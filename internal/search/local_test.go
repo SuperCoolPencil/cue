@@ -8,7 +8,7 @@ import (
 )
 
 func TestFilterLocalSearchesCachedLibraries(t *testing.T) {
-	st, _ := store.NewLibraryStore("", "")
+	st, _ := store.NewLibraryStore("", "", "")
 	libs := []domain.Library{
 		{ID: "movies", Name: "Movies", Type: "movie"},
 		{ID: "shows", Name: "Shows", Type: "show"},
