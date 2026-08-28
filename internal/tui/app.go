@@ -441,55 +441,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case MarkWatchedMsg:
 		m.StatusMsg = "Marked watched: " + msg.Title
-		// Update local state for immediate feedback
-		if top := m.ColumnStack.Top(); top != nil {
-			if item := top.SelectedItem(); item != nil {
-				switch v := item.(type) {
-				case *domain.MediaItem:
-					v.IsPlayed = true
-					v.ViewOffset = 0
-					// Propagate to parents in the stack
-					m.propagateWatchStatus(v, true)
-				case *domain.Show:
-					v.UnwatchedCount = 0
-				case *domain.Season:
-					v.UnwatchedCount = 0
-				case *components.SeasonHeader:
-					v.Season.UnwatchedCount = 0
-				}
-			}
-		}
-		// Delayed targeted refresh to avoid stale data flicker
-		cmds = append(cmds, tea.Tick(500*time.Millisecond, func(t time.Time) tea.Msg {
-			return RefreshCurrentMsg{LibraryID: msg.LibraryID}
-		}))
+		m.applyWatchState(msg.ItemID, true)
 		cmds = append(cmds, ClearStatusCmd(3*time.Second))
 		return m, tea.Batch(cmds...)
 
 	case MarkUnwatchedMsg:
 		m.StatusMsg = "Marked unwatched: " + msg.Title
-		// Update local state for immediate feedback
-		if top := m.ColumnStack.Top(); top != nil {
-			if item := top.SelectedItem(); item != nil {
-				switch v := item.(type) {
-				case *domain.MediaItem:
-					v.IsPlayed = false
-					v.ViewOffset = 0
-					// Propagate to parents in the stack
-					m.propagateWatchStatus(v, false)
-				case *domain.Show:
-					v.UnwatchedCount = v.EpisodeCount
-				case *domain.Season:
-					v.UnwatchedCount = v.EpisodeCount
-				case *components.SeasonHeader:
-					v.Season.UnwatchedCount = v.Season.EpisodeCount
-				}
-			}
-		}
-		// Delayed targeted refresh to avoid stale data flicker
-		cmds = append(cmds, tea.Tick(500*time.Millisecond, func(t time.Time) tea.Msg {
-			return RefreshCurrentMsg{LibraryID: msg.LibraryID}
-		}))
+		m.applyWatchState(msg.ItemID, false)
 		cmds = append(cmds, ClearStatusCmd(3*time.Second))
 		return m, tea.Batch(cmds...)
 
@@ -812,6 +770,40 @@ func (m *Model) refreshCurrentView() tea.Cmd {
 	}
 
 	return LoadLibrariesCmd(m.LibraryService)
+}
+
+// applyWatchState patches an item's watch state in the cache and in every
+// visible column. This replaces the old invalidate-everything-and-refetch
+// approach: the UI updates instantly and no network requests are issued.
+func (m *Model) applyWatchState(itemID string, played bool) {
+	m.LibraryService.SetWatchState(itemID, played)
+
+	// Patch the item wherever a column renders it, and adjust unwatched
+	// counters on visible show/season rows if an episode flipped state.
+	var patched *domain.MediaItem
+	flipped := false
+	for i := 0; i < m.ColumnStack.Len(); i++ {
+		if col := m.ColumnStack.Get(i); col != nil {
+			if item, f := col.ApplyWatchState(itemID, played); item != nil {
+				patched = item
+				flipped = flipped || f
+			}
+		}
+	}
+
+	if flipped && patched != nil && patched.ShowID != "" {
+		delta := 1
+		if played {
+			delta = -1
+		}
+		for i := 0; i < m.ColumnStack.Len(); i++ {
+			if col := m.ColumnStack.Get(i); col != nil {
+				col.AdjustUnwatchedCounts(patched.ShowID, patched.ParentID, delta)
+			}
+		}
+	}
+
+	m.updateInspector()
 }
 
 // refreshAfterStatusChange handles refreshing the UI after a watch status change.

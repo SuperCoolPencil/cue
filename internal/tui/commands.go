@@ -209,7 +209,7 @@ func MarkWatchedCmd(svc *player.Service, libID, itemID, title string) tea.Cmd {
 		if err := svc.MarkWatched(ctx, itemID); err != nil {
 			return ErrMsg{Err: err, Context: "marking as watched"}
 		}
-		return MarkWatchedMsg{Title: title, LibraryID: libID}
+		return MarkWatchedMsg{ItemID: itemID, Title: title, LibraryID: libID}
 	}
 }
 
@@ -222,7 +222,7 @@ func MarkUnwatchedCmd(svc *player.Service, libID, itemID, title string) tea.Cmd 
 		if err := svc.MarkUnwatched(ctx, itemID); err != nil {
 			return ErrMsg{Err: err, Context: "marking as unwatched"}
 		}
-		return MarkUnwatchedMsg{Title: title, LibraryID: libID}
+		return MarkUnwatchedMsg{ItemID: itemID, Title: title, LibraryID: libID}
 	}
 }
 

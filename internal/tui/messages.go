@@ -92,12 +92,14 @@ type PlaybackFinishedMsg struct {
 
 // MarkWatchedMsg signals a request to mark an item as watched
 type MarkWatchedMsg struct {
+	ItemID    string
 	Title     string
 	LibraryID string
 }
 
 // MarkUnwatchedMsg signals a request to mark an item as unwatched
 type MarkUnwatchedMsg struct {
+	ItemID    string
 	Title     string
 	LibraryID string
 }
