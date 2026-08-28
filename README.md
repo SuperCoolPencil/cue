@@ -86,10 +86,6 @@ Cue handles TV show playback by sending the entire season to mpv as a native pla
 Other players (VLC, IINA, etc.) are supported for basic playback, but the native playlist and real-time scrobbling features require `mpv`.
 
 
-## Attribution
-
-Cue is forked from [Kino](https://github.com/mmcdole/kino), originally created by Matthew McDole. The original MIT license notice is preserved in `LICENSE`.
-
 On WSL, Cue detects Windows-side players (PotPlayer, mpv.exe, VLC) from both `PATH` and Windows App Paths, so normal GUI installations work without extra configuration. Native Windows builds use the same detection.
 
 If no media player is available, Cue opens the raw media URL with the platform's default URL handler. This is a best-effort browser fallback: resume is unavailable and some MKV/audio-codec combinations may play without audio. Installing mpv, VLC, or PotPlayer is recommended for reliable playback.
