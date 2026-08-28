@@ -1001,15 +1001,3 @@ func (m *Model) updateInspector() {
 		m.Inspector.SetItem(nil)
 	}
 }
-
-// getSelectedItemID returns the ID of the selected item in a column
-func (m Model) getSelectedItemID(c *components.ListColumn) string {
-	if c == nil {
-		return ""
-	}
-	item, ok := c.SelectedItem().(domain.ListItem)
-	if !ok {
-		return ""
-	}
-	return item.GetID()
-}

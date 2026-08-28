@@ -143,7 +143,9 @@ func TestRemoveFromPlaylistUsesEntryID(t *testing.T) {
 	c := testClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
-			w.Write([]byte(`{"Items":[{"Id":"item1","Name":"Ep","Type":"Episode","PlaylistItemId":"entry-guid-1"}],"TotalRecordCount":1}`))
+			if _, err := w.Write([]byte(`{"Items":[{"Id":"item1","Name":"Ep","Type":"Episode","PlaylistItemId":"entry-guid-1"}],"TotalRecordCount":1}`)); err != nil {
+				t.Fatal(err)
+			}
 		case http.MethodDelete:
 			deleteQuery = r.URL.Query()
 			w.WriteHeader(http.StatusNoContent)
@@ -163,7 +165,9 @@ func TestDeviceIDInAuthHeader(t *testing.T) {
 	var header string
 	c := testClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		header = r.Header.Get("X-Emby-Authorization")
-		w.Write([]byte(`{"Items":[],"TotalRecordCount":0}`))
+		if _, err := w.Write([]byte(`{"Items":[],"TotalRecordCount":0}`)); err != nil {
+			t.Fatal(err)
+		}
 	}))
 	if _, err := c.GetLibraries(context.Background()); err != nil {
 		t.Fatal(err)

@@ -95,7 +95,7 @@ func seedStore(t *testing.T, dir string) *LibraryStore {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { s.Close() })
+	t.Cleanup(func() { _ = s.Close() })
 
 	movie := &domain.MediaItem{ID: "mov1", Title: "Movie One", Type: domain.MediaTypeMovie}
 	episode := &domain.MediaItem{

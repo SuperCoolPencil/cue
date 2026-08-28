@@ -638,7 +638,7 @@ func (s *LibraryStore) updateEach(bucket []byte, keyFilter func(string) bool, tr
 	var pairs []kv
 
 	if s.db != nil {
-		s.db.View(func(tx *bolt.Tx) error {
+		_ = s.db.View(func(tx *bolt.Tx) error {
 			b := tx.Bucket(bucket)
 			if b == nil {
 				return nil
@@ -680,7 +680,7 @@ func (s *LibraryStore) updateEach(bucket []byte, keyFilter func(string) bool, tr
 		s.cache[string(bucket)+":"+p.k] = newData
 		s.mu.Unlock()
 		if s.db != nil {
-			s.db.Update(func(tx *bolt.Tx) error {
+			_ = s.db.Update(func(tx *bolt.Tx) error {
 				return tx.Bucket(bucket).Put([]byte(p.k), newData)
 			})
 		}

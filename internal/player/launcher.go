@@ -590,7 +590,7 @@ func (l *Launcher) launchConfigured(offsetSecs int, playlistStart int, media ...
 			args = append(args, m.URL)
 			args = append(args, "--}")
 		} else {
-			if i == 0 && !(knownPlayer && definition.URLBeforeSeek) {
+			if i == 0 && (!knownPlayer || !definition.URLBeforeSeek) {
 				args = append(args, seekArgs...)
 			}
 			args = append(args, m.URL)

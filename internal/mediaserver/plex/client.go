@@ -147,9 +147,12 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 		}
 
 		body, err := io.ReadAll(resp.Body)
-		resp.Body.Close()
 		if err != nil {
+			_ = resp.Body.Close()
 			return nil, fmt.Errorf("failed to read response: %w", err)
+		}
+		if err := resp.Body.Close(); err != nil {
+			return nil, fmt.Errorf("failed to close response body: %w", err)
 		}
 
 		switch {

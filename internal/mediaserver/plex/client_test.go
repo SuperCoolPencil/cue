@@ -91,7 +91,9 @@ func TestScrobbleIdentifierParam(t *testing.T) {
 	var query url.Values
 	c := testClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		query = r.URL.Query()
-		w.Write([]byte(`{}`))
+		if _, err := w.Write([]byte(`{}`)); err != nil {
+			t.Fatal(err)
+		}
 	}))
 	if err := c.MarkPlayed(context.Background(), "42"); err != nil {
 		t.Fatal(err)
@@ -107,10 +109,12 @@ func TestScrobbleIdentifierParam(t *testing.T) {
 // Global search results include TV shows (parity with the Jellyfin backend).
 func TestSearchIncludesShows(t *testing.T) {
 	c := testClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`{"MediaContainer":{"Metadata":[
+		if _, err := w.Write([]byte(`{"MediaContainer":{"Metadata":[
 			{"ratingKey":"1","title":"A Movie","type":"movie"},
 			{"ratingKey":"2","title":"A Show","type":"show","year":2020}
-		]}}`))
+		]}}`)); err != nil {
+			t.Fatal(err)
+		}
 	}))
 
 	results, err := c.Search(context.Background(), "a")
