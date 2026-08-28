@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -63,6 +64,19 @@ var wslPlayers = []PlayerDef{
 func lookPathOK(binary string) bool {
 	_, err := exec.LookPath(binary)
 	return err == nil
+}
+
+// tokenParamRe matches credential query parameters in stream URLs
+var tokenParamRe = regexp.MustCompile(`(?i)((?:api_key|X-Plex-Token)=)[^&\s"']+`)
+
+// redactTokens masks credential query parameters before anything containing
+// a stream URL reaches the log file.
+func redactTokens(args []string) []string {
+	out := make([]string, len(args))
+	for i, a := range args {
+		out[i] = tokenParamRe.ReplaceAllString(a, "${1}REDACTED")
+	}
+	return out
 }
 
 // isWSL reports whether we are running inside Windows Subsystem for Linux.
@@ -241,7 +255,7 @@ func (l *Launcher) execPlayer(player PlayerDef, offsetSecs int, playlistStart in
 		}
 	}
 
-	l.logger.Debug("executing player", "binary", player.Binary, "args", args)
+	l.logger.Debug("executing player", "binary", player.Binary, "args", redactTokens(args))
 	cmd := exec.Command(player.Binary, args...)
 	if err := cmd.Start(); err != nil {
 		return nil, "", err
@@ -315,7 +329,7 @@ func (l *Launcher) launchConfigured(offsetSecs int, playlistStart int, media ...
 		}
 	}
 
-	l.logger.Debug("launching configured player", "command", l.command, "args", args)
+	l.logger.Debug("launching configured player", "command", l.command, "args", redactTokens(args))
 
 	// On macOS, try 'open -a' if command not in PATH (for GUI apps)
 	if runtime.GOOS == "darwin" {
@@ -366,7 +380,7 @@ func (l *Launcher) launchMacOSApp(appName string, playerArgs []string) (*exec.Cm
 		cmdArgs = append(cmdArgs, playerArgs...)
 	}
 
-	l.logger.Debug("using macOS 'open -a'", "app", appName, "args", cmdArgs)
+	l.logger.Debug("using macOS 'open -a'", "app", appName, "args", redactTokens(cmdArgs))
 	cmd := exec.Command("open", cmdArgs...)
 	if err := cmd.Start(); err != nil {
 		return nil, err

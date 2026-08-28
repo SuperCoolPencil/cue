@@ -108,6 +108,8 @@ func LoadConfig() (*Config, error) {
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(defaultConfigPath())
 	viper.AddConfigPath(".")
+	// The config file contains the server token: never world-readable
+	viper.SetConfigPermissions(0o600)
 
 	// Environment variable overrides
 	viper.SetEnvPrefix("CUE")
@@ -119,6 +121,11 @@ func LoadConfig() (*Config, error) {
 			return nil, fmt.Errorf("error reading config file: %w", err)
 		}
 		// Config file not found is OK, use defaults
+	}
+
+	// Tighten pre-existing config files created with the old 0644 default
+	if configFile := viper.ConfigFileUsed(); configFile != "" {
+		_ = os.Chmod(configFile, 0o600)
 	}
 
 	if err := viper.Unmarshal(cfg); err != nil {
@@ -163,6 +170,8 @@ func SaveConfig(cfg *Config) error {
 	if err := os.MkdirAll(configPath, 0755); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
+
+	viper.SetConfigPermissions(0o600)
 
 	// Set server fields individually to ensure correct key names (snake_case)
 	viper.Set("server.type", cfg.Server.Type)
@@ -255,6 +264,7 @@ func ClearServerConfig() error {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
+	viper.SetConfigPermissions(0o600)
 	configFile := filepath.Join(configPath, "config.yaml")
 	if err := viper.WriteConfigAs(configFile); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
