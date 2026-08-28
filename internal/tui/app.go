@@ -139,6 +139,7 @@ type Model struct {
 	LibraryStates map[string]components.LibrarySyncState // Tracks progress per library
 	SyncingCount  int                                    // Libraries still syncing
 	MultiLibSync  bool                                   // True when syncing multiple libraries (R / startup)
+	SyncGen       int                                    // Current sync generation; messages from older generations are dropped
 
 	// Navigation plan for deep linking
 	navPlan *NavPlan
@@ -226,6 +227,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case LibrariesLoadedMsg:
 		m.Libraries = msg.Libraries
 
+		// New sync generation: any still-running chains from before this
+		// reload are stale and their messages will be dropped
+		m.SyncGen++
+
 		// Initialize all states to Syncing (including playlists)
 		m.LibraryStates = make(map[string]components.LibrarySyncState)
 		for _, lib := range msg.Libraries {
@@ -246,8 +251,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Start parallel sync of ALL libraries + playlists
 		m.Loading = true
 		return m, tea.Batch(
-			SyncAllLibrariesCmd(m.LibraryService, msg.Libraries),
-			SyncPlaylistsCmd(m.PlaylistService, playlistsLibraryID),
+			SyncAllLibrariesCmd(m.LibraryService, msg.Libraries, m.SyncGen),
+			SyncPlaylistsCmd(m.PlaylistService, playlistsLibraryID, m.SyncGen),
 		)
 
 	case MoviesLoadedMsg:
@@ -481,6 +486,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case LibrarySyncProgressMsg:
+		// Drop messages from sync chains superseded by a newer library
+		// reload; without this, stale chains corrupt SyncingCount and can
+		// wedge the loading state permanently
+		if msg.Generation != m.SyncGen {
+			return m, nil
+		}
+
 		state := m.LibraryStates[msg.LibraryID]
 
 		if msg.Error != nil {
@@ -544,6 +556,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case PlaylistsLoadedMsg:
 		m.Loading = false
+
+		// Validate content ID like every other load handler: a slow playlist
+		// fetch must not clobber whatever column the user navigated to since
+		if !m.validateContentID(playlistsLibraryID) {
+			return m, nil
+		}
+
 		if top := m.ColumnStack.Top(); top != nil {
 			top.ReplaceItems(msg.Playlists)
 		}
