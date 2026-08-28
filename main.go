@@ -99,8 +99,11 @@ func runCLI(args []string, stdout, stderr io.Writer) int {
 			fs.Usage()
 			_, _ = fmt.Fprintln(stdout, "\nCommands:")
 			_, _ = fmt.Fprintln(stdout, "  completion   Generate shell completion scripts")
+			_, _ = fmt.Fprintln(stdout, "  discover     Discover and switch Plex servers via plex.tv")
 			_, _ = fmt.Fprintln(stdout, "  help         Show this help")
 			return 0
+		case "discover":
+			return runDiscover(remainingArgs[1:], stdout, stderr)
 		default:
 			_, _ = fmt.Fprintf(stderr, "Error: unknown command %q\n", remainingArgs[0])
 			fs.Usage()
@@ -121,7 +124,7 @@ const bashCompletion = `_cue_completions() {
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
-    opts="completion help"
+    opts="completion discover help"
 
     case "${prev}" in
         completion)
@@ -148,7 +151,7 @@ _cue() {
     _arguments -C \
         "-v[print version]" \
         "--version[print version]" \
-        "1: :((completion\:'Generate shell completion scripts' help\:'Show help'))" \
+        "1: :((completion\:'Generate shell completion scripts' discover\:'Discover and switch Plex servers' help\:'Show help'))" \
         "*::arg:->args"
     case $line[1] in
         completion)
@@ -163,8 +166,9 @@ const psCompletion = `Register-ArgumentCompleter -CommandName cue -ScriptBlock {
     param($wordToComplete, $commandAst, $cursorPosition)
     $completions = @()
     if ($commandAst.CommandElements.Count -eq 1) {
-        $completions += New-Object System.Management.Automation.CompletionResult "completion", "completion", "ParameterValue", "Generate shell completion scripts"
-        $completions += New-Object System.Management.Automation.CompletionResult "help", "help", "ParameterValue", "Show help"
+    $completions += New-Object System.Management.Automation.CompletionResult "completion", "completion", "ParameterValue", "Generate shell completion scripts"
+    $completions += New-Object System.Management.Automation.CompletionResult "discover", "discover", "ParameterValue", "Discover and switch Plex servers"
+    $completions += New-Object System.Management.Automation.CompletionResult "help", "help", "ParameterValue", "Show help"
     } elseif ($commandAst.CommandElements[1].Value -eq "completion") {
         $completions += New-Object System.Management.Automation.CompletionResult "bash", "bash", "ParameterValue", "bash"
         $completions += New-Object System.Management.Automation.CompletionResult "zsh", "zsh", "ParameterValue", "zsh"
@@ -185,6 +189,7 @@ end
 
 complete -c cue -f
 complete -c cue -n "__fish_cue_no_subcommand" -a "completion" -d "Generate shell completion scripts"
+complete -c cue -n "__fish_cue_no_subcommand" -a "discover" -d "Discover and switch Plex servers"
 complete -c cue -n "__fish_cue_no_subcommand" -a "help" -d "Show help"
 complete -c cue -s v -l version -d "Print version"
 complete -c cue -n "__fish_seen_subcommand_from completion" -a "bash zsh fish powershell" -d "Shell type"

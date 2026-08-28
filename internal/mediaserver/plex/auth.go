@@ -28,9 +28,12 @@ var (
 )
 
 const (
-	plexTVBaseURL = "https://plex.tv"
-	pinEndpoint   = "/api/v2/pins"
+	pinEndpoint = "/api/v2/pins"
 )
+
+// plexTVBaseURL is the plex.tv API root. Declared as a var (not const) so it
+// can be overridden in tests against a local mock server.
+var plexTVBaseURL = "https://plex.tv"
 
 // AuthClient handles Plex authentication
 type AuthClient struct {
