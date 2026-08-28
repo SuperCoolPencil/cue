@@ -268,11 +268,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Update matching column with movies
 		if col := m.ColumnStack.FindColumn(msg.LibraryID); col != nil {
-			selectedID := m.getSelectedItemID(col)
-			col.SetItems(msg.Movies)
-			if selectedID != "" {
-				col.SetSelectedByID(selectedID)
-			}
+			col.ReplaceItems(msg.Movies)
 		}
 
 		m.updateInspector()
@@ -301,11 +297,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Update matching column with shows
 		if col := m.ColumnStack.FindColumn(msg.LibraryID); col != nil {
-			selectedID := m.getSelectedItemID(col)
-			col.SetItems(msg.Shows)
-			if selectedID != "" {
-				col.SetSelectedByID(selectedID)
-			}
+			col.ReplaceItems(msg.Shows)
 		}
 
 		m.updateInspector()
@@ -334,11 +326,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Update matching column with mixed content
 		if col := m.ColumnStack.FindColumn(msg.LibraryID); col != nil {
-			selectedID := m.getSelectedItemID(col)
-			col.SetItems(msg.Items)
-			if selectedID != "" {
-				col.SetSelectedByID(selectedID)
-			}
+			col.ReplaceItems(msg.Items)
 		}
 
 		m.updateInspector()
@@ -382,11 +370,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		// Classic path: populate seasons column
-		selectedID := m.getSelectedItemID(top)
-		top.SetItems(msg.Seasons)
-		if selectedID != "" {
-			top.SetSelectedByID(selectedID)
-		}
+		top.ReplaceItems(msg.Seasons)
 		m.updateInspector()
 
 		// Advance nav plan if waiting for this load
@@ -414,11 +398,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if !m.validateContentID(msg.SeasonID) {
 			return m, nil
 		}
-		selectedID := m.getSelectedItemID(top)
-		top.SetItems(msg.Episodes)
-		if selectedID != "" {
-			top.SetSelectedByID(selectedID)
-		}
+		top.ReplaceItems(msg.Episodes)
 		m.updateInspector()
 
 		// Advance nav plan if waiting for this load
@@ -517,6 +497,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.clearNavPlan()
 		m.StatusIsErr = true
 		m.Loading = false
+		// A failed refresh must not leave the column spinner running
+		if top := m.ColumnStack.Top(); top != nil {
+			top.SetRefreshing(false)
+		}
 		if errors.Is(msg.Err, domain.ErrAuthFailed) {
 			// Actionable, persistent message: the token was revoked/expired
 			// and the user must re-authenticate
@@ -603,7 +587,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case PlaylistsLoadedMsg:
 		m.Loading = false
 		if top := m.ColumnStack.Top(); top != nil {
-			top.SetItems(msg.Playlists)
+			top.ReplaceItems(msg.Playlists)
 		}
 		m.updateInspector()
 		return m, nil
@@ -618,7 +602,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		m.currentPlaylistID = msg.PlaylistID
 		if top := m.ColumnStack.Top(); top != nil {
-			top.SetItems(msg.Items)
+			top.ReplaceItems(msg.Items)
 		}
 		m.updateInspector()
 		return m, nil

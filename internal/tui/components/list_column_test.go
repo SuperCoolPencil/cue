@@ -157,3 +157,47 @@ func TestListColumnSetItemsPreservesSelection(t *testing.T) {
 		t.Fatalf("expected ID 2, got %s", col.SelectedMediaItem().ID)
 	}
 }
+
+func replacementMovies(titles ...string) []*domain.MediaItem {
+	items := make([]*domain.MediaItem, len(titles))
+	for i, title := range titles {
+		items[i] = &domain.MediaItem{ID: "id-" + title, Title: title, Type: domain.MediaTypeMovie}
+	}
+	return items
+}
+
+func TestReplaceItemsPreservesViewState(t *testing.T) {
+	col := NewListColumn(ColumnTypeMovies, "Movies")
+	col.SetSize(40, 20)
+	col.SetItems(replacementMovies("Alpha", "Bravo", "Charlie"))
+	col.ApplySort(SortTitle, SortDesc)
+	if !col.SetSelectedByID("id-Bravo") {
+		t.Fatal("failed to select Bravo")
+	}
+	col.SetRefreshing(true)
+
+	col.ReplaceItems(replacementMovies("Alpha", "Anchor", "Bravo", "Charlie"))
+
+	if got := col.SelectedMediaItem(); got == nil || got.ID != "id-Bravo" {
+		t.Fatalf("selection after replacement = %#v", got)
+	}
+	field, direction := col.SortState()
+	if field != SortTitle || direction != SortDesc {
+		t.Fatalf("sort after replacement = %v, %v", field, direction)
+	}
+	if col.IsRefreshing() {
+		t.Fatal("refresh flag was not cleared")
+	}
+}
+
+func TestReplaceItemsClampsMissingSelection(t *testing.T) {
+	col := NewListColumn(ColumnTypeMovies, "Movies")
+	col.SetItems(replacementMovies("Alpha", "Bravo", "Charlie"))
+	col.SetSelectedIndex(2)
+
+	col.ReplaceItems(replacementMovies("Alpha", "Bravo"))
+
+	if got := col.SelectedIndex(); got != 1 {
+		t.Fatalf("selected index = %d, want 1", got)
+	}
+}
