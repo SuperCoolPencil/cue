@@ -76,7 +76,7 @@ func (s *Scrobbler) Monitor(ctx context.Context, cmd *exec.Cmd, ipcSocket string
 		var err error
 		var activeItem domain.MediaItem
 		var lastPosMs int64
-		var curState string = "playing"
+		curState := "playing"
 		var mu sync.Mutex     // guards markedIDs
 		var playMu sync.Mutex // guards activeItem/lastPosMs/curState (shared with mpv event handler)
 		markedIDs := make(map[string]bool)

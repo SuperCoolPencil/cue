@@ -268,7 +268,7 @@ func (m *mockMPV) writeEvent(c net.Conn, event string, data interface{}) {
 }
 
 func (m *mockMPV) handle(c net.Conn) {
-	defer c.Close()
+	defer func() { _ = c.Close() }()
 	done := make(chan struct{})
 	defer close(done)
 	dec := json.NewDecoder(c)
