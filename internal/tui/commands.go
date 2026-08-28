@@ -517,11 +517,19 @@ func DirectPlayShowCmd(svc mediaserver.MediaSource, playerSvc *player.Service, s
 		}
 		var episodes []*domain.MediaItem
 		for _, season := range seasons {
+			// Season zero contains specials, which should not interrupt regular
+			// episode progression.
+			if season == nil || season.SeasonNum == 0 {
+				continue
+			}
 			seasonEpisodes, err := svc.GetEpisodes(ctx, season.ID)
 			if err != nil {
 				return ErrMsg{Err: err, Context: "loading episodes for next episode"}
 			}
 			for _, episode := range seasonEpisodes {
+				if episode == nil {
+					continue
+				}
 				if episode.LibraryID == "" {
 					episode.LibraryID = libraryID
 				}
