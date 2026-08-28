@@ -38,10 +38,13 @@ type listItemWrapper struct {
 // LibraryStore implements domain.Store using BoltDB.
 type LibraryStore struct {
 	db *bolt.DB
-	mu sync.RWMutex // Protects memory cache
+	mu sync.RWMutex // Protects memory cache and gen
 
 	// In-memory cache for hot-path reads (promoted on access)
 	cache map[string][]byte
+
+	// gen guards cache promotion against concurrent invalidation.
+	gen uint64
 }
 
 // NewLibraryStore opens (or creates) the cache for one server+user pair.
@@ -123,6 +126,7 @@ func (s *LibraryStore) get(bucket []byte, key string, dest interface{}) bool {
 		s.mu.RUnlock()
 		return json.Unmarshal(data, dest) == nil
 	}
+	genBefore := s.gen
 	s.mu.RUnlock()
 
 	if s.db == nil {
@@ -149,7 +153,9 @@ func (s *LibraryStore) get(bucket []byte, key string, dest interface{}) bool {
 
 	// Promote to memory cache
 	s.mu.Lock()
-	s.cache[cacheKey] = data
+	if s.gen == genBefore {
+		s.cache[cacheKey] = data
+	}
 	s.mu.Unlock()
 
 	return json.Unmarshal(data, dest) == nil
@@ -161,22 +167,47 @@ func (s *LibraryStore) set(bucket []byte, key string, value interface{}) error {
 		return err
 	}
 
-	cacheKey := string(bucket) + ":" + key
-
-	// Update memory cache
-	s.mu.Lock()
-	s.cache[cacheKey] = data
-	s.mu.Unlock()
-
-	if s.db == nil {
-		return nil // Memory-only mode
+	// Durable write first so memory never advertises a write BoltDB rejected.
+	if s.db != nil {
+		if err := s.db.Update(func(tx *bolt.Tx) error {
+			return tx.Bucket(bucket).Put([]byte(key), data)
+		}); err != nil {
+			return err
+		}
 	}
 
-	// Write to BoltDB
-	return s.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket(bucket)
-		return b.Put([]byte(key), data)
-	})
+	s.mu.Lock()
+	s.cache[string(bucket)+":"+key] = data
+	s.mu.Unlock()
+	return nil
+}
+
+// setContentPair commits content and its server timestamp atomically.
+func (s *LibraryStore) setContentPair(dataKey string, value interface{}, tsKey string, serverTS int64) error {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	tsData, err := json.Marshal(serverTS)
+	if err != nil {
+		return err
+	}
+	if s.db != nil {
+		if err := s.db.Update(func(tx *bolt.Tx) error {
+			bucket := tx.Bucket(bucketContent)
+			if err := bucket.Put([]byte(dataKey), data); err != nil {
+				return err
+			}
+			return bucket.Put([]byte(tsKey), tsData)
+		}); err != nil {
+			return err
+		}
+	}
+	s.mu.Lock()
+	s.cache[string(bucketContent)+":"+dataKey] = data
+	s.cache[string(bucketContent)+":"+tsKey] = tsData
+	s.mu.Unlock()
+	return nil
 }
 
 func (s *LibraryStore) delete(bucket []byte, key string) {
@@ -184,6 +215,7 @@ func (s *LibraryStore) delete(bucket []byte, key string) {
 
 	// Clear from memory cache
 	s.mu.Lock()
+	s.gen++
 	delete(s.cache, cacheKey)
 	s.mu.Unlock()
 
@@ -204,6 +236,7 @@ func (s *LibraryStore) delete(bucket []byte, key string) {
 func (s *LibraryStore) deletePrefix(bucket []byte, prefix string) {
 	// Clear from memory cache
 	s.mu.Lock()
+	s.gen++
 	cachePrefix := string(bucket) + ":" + prefix
 	for k := range s.cache {
 		if strings.HasPrefix(k, cachePrefix) {
@@ -254,12 +287,7 @@ func (s *LibraryStore) GetMovies(libID string) ([]*domain.MediaItem, bool) {
 }
 
 func (s *LibraryStore) SaveMovies(libID string, movies []*domain.MediaItem, serverTS int64) error {
-	// Save data
-	if err := s.set(bucketContent, "lib:"+libID+":movies", movies); err != nil {
-		return err
-	}
-	// Save timestamp separately for freshness checks
-	return s.set(bucketContent, "lib:"+libID+":ts", serverTS)
+	return s.setContentPair("lib:"+libID+":movies", movies, "lib:"+libID+":ts", serverTS)
 }
 
 // === Shows ===
@@ -271,10 +299,7 @@ func (s *LibraryStore) GetShows(libID string) ([]*domain.Show, bool) {
 }
 
 func (s *LibraryStore) SaveShows(libID string, shows []*domain.Show, serverTS int64) error {
-	if err := s.set(bucketContent, "lib:"+libID+":shows", shows); err != nil {
-		return err
-	}
-	return s.set(bucketContent, "lib:"+libID+":ts", serverTS)
+	return s.setContentPair("lib:"+libID+":shows", shows, "lib:"+libID+":ts", serverTS)
 }
 
 // === Mixed Content ===
@@ -288,10 +313,7 @@ func (s *LibraryStore) GetMixedContent(libID string) ([]domain.ListItem, bool) {
 }
 
 func (s *LibraryStore) SaveMixedContent(libID string, items []domain.ListItem, serverTS int64) error {
-	if err := s.set(bucketContent, "lib:"+libID+":mixed", wrapListItems(items)); err != nil {
-		return err
-	}
-	return s.set(bucketContent, "lib:"+libID+":ts", serverTS)
+	return s.setContentPair("lib:"+libID+":mixed", wrapListItems(items), "lib:"+libID+":ts", serverTS)
 }
 
 // === Seasons (hierarchical key: lib:{libID}:show:{showID}) ===
@@ -694,6 +716,7 @@ func (s *LibraryStore) InvalidateSeason(libID, showID, seasonID string) {
 
 func (s *LibraryStore) InvalidateAll() {
 	s.mu.Lock()
+	s.gen++
 	s.cache = make(map[string][]byte)
 	s.mu.Unlock()
 
