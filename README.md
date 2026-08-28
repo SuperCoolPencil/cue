@@ -88,6 +88,8 @@ Other players (VLC, IINA, etc.) are supported for basic playback, but the native
 
 Cue is forked from [Kino](https://github.com/mmcdole/kino), originally created by Matthew McDole. The original MIT license notice is preserved in `LICENSE`.
 
+On WSL, Windows-side players are detected too (PotPlayer, mpv.exe, VLC), and links fall back to `wslview`/`explorer.exe` instead of `xdg-open`.
+
 ## License
 
 MIT
