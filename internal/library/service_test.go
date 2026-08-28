@@ -2,6 +2,7 @@ package library
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"testing"
 
@@ -18,8 +19,11 @@ type fakeLibraryClient struct {
 	episodes      []*domain.MediaItem
 	episodesMap   map[string][]*domain.MediaItem // seasonID -> episodes
 	continueItems []*domain.MediaItem
+	itemCount     int
+	countErr      error
 	libraryCalls  int
 	movieCalls    int
+	countCalls    int
 }
 
 func (f *fakeLibraryClient) GetLibraries(context.Context) ([]domain.Library, error) {
@@ -61,6 +65,11 @@ func (f *fakeLibraryClient) GetContinueWatching(context.Context) ([]*domain.Medi
 	return f.continueItems, nil
 }
 
+func (f *fakeLibraryClient) GetLibraryItemCount(context.Context, string, string) (int, error) {
+	f.countCalls++
+	return f.itemCount, f.countErr
+}
+
 func TestFetchLibrariesSavesToStore(t *testing.T) {
 	st, _ := store.NewLibraryStore("", "")
 	client := &fakeLibraryClient{libs: []domain.Library{{ID: "lib", Name: "Movies", Type: "movie"}}}
@@ -84,7 +93,7 @@ func TestSyncLibraryUsesFreshCache(t *testing.T) {
 	if err := st.SaveMovies("lib", []*domain.MediaItem{{ID: "cached"}}, 100); err != nil {
 		t.Fatal(err)
 	}
-	client := &fakeLibraryClient{}
+	client := &fakeLibraryClient{itemCount: 1}
 	svc := NewService(client, st, slog.Default())
 
 	result, err := svc.SyncLibrary(context.Background(), domain.Library{ID: "lib", Type: "movie", UpdatedAt: 50}, nil)
@@ -93,6 +102,43 @@ func TestSyncLibraryUsesFreshCache(t *testing.T) {
 	}
 	if !result.FromCache || result.Count != 1 || client.movieCalls != 0 {
 		t.Fatalf("result=%#v calls=%d", result, client.movieCalls)
+	}
+}
+
+func TestSyncLibraryRefetchesWhenServerCountChanges(t *testing.T) {
+	st, _ := store.NewLibraryStore("", "")
+	if err := st.SaveMovies("lib", []*domain.MediaItem{{ID: "cached"}}, 100); err != nil {
+		t.Fatal(err)
+	}
+	client := &fakeLibraryClient{
+		itemCount:  2,
+		moviePages: [][]*domain.MediaItem{{{ID: "cached"}, {ID: "new"}}},
+	}
+	svc := NewService(client, st, slog.Default())
+
+	result, err := svc.SyncLibrary(context.Background(), domain.Library{ID: "lib", Type: "movie", UpdatedAt: 50}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.FromCache || result.Count != 2 || client.movieCalls != 1 {
+		t.Fatalf("result=%#v fetch calls=%d", result, client.movieCalls)
+	}
+}
+
+func TestSyncLibraryRetainsCacheWhenCountValidationFails(t *testing.T) {
+	st, _ := store.NewLibraryStore("", "")
+	if err := st.SaveMovies("lib", []*domain.MediaItem{{ID: "cached"}}, 100); err != nil {
+		t.Fatal(err)
+	}
+	client := &fakeLibraryClient{countErr: errors.New("offline")}
+	svc := NewService(client, st, slog.Default())
+
+	result, err := svc.SyncLibrary(context.Background(), domain.Library{ID: "lib", Type: "movie", UpdatedAt: 50}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.FromCache || result.Count != 1 || client.movieCalls != 0 {
+		t.Fatalf("result=%#v fetch calls=%d", result, client.movieCalls)
 	}
 }
 
