@@ -58,6 +58,8 @@ func (s *Scrobbler) Monitor(ctx context.Context, cmd *exec.Cmd, ipcSocket string
 		defer close(resCh)
 		defer close(statusCh)
 		defer removeMPVSocket(ipcSocket)
+		var progressWG sync.WaitGroup
+		defer progressWG.Wait()
 
 		var mpv *mpvConn
 		var err error
@@ -129,13 +131,18 @@ func (s *Scrobbler) Monitor(ctx context.Context, cmd *exec.Cmd, ipcSocket string
 						s.logger.Debug("reporting progress", "item", activeItem.Title, "pos", lastPosMs)
 
 						// Fire and forget progress update
+						progressWG.Add(1)
 						go func(item domain.MediaItem, pos int64) {
+							defer progressWG.Done()
 							updateCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 							defer cancel()
 							if err := s.client.UpdateProgress(updateCtx, item.ID, pos); err == nil {
 								// Format position as MM:SS for user display
 								d := time.Duration(pos) * time.Millisecond
-								statusCh <- fmt.Sprintf("Saved %s %02d:%02d to server", item.Title, int(d.Minutes()), int(d.Seconds())%60)
+								select {
+								case statusCh <- fmt.Sprintf("Saved %s %02d:%02d to server", item.Title, int(d.Minutes()), int(d.Seconds())%60):
+								default:
+								}
 							} else {
 								s.logger.Warn("failed to update progress", "error", err)
 							}

@@ -9,7 +9,9 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/SuperCoolPencil/cue/internal/domain"
@@ -17,16 +19,30 @@ import (
 
 // Launcher launches media URLs in an external player
 type Launcher struct {
-	command  string   // configured player command, empty for system default
-	args     []string // additional arguments for the player
-	seekFlag string   // user-configured seek flag (e.g., "--start=%d"), overrides table lookup
-	logger   *slog.Logger
+	command       string   // configured player command, empty for system default
+	args          []string // additional arguments for the player
+	seekFlag      string   // user-configured seek flag (e.g., "--start=%d"), overrides table lookup
+	logger        *slog.Logger
+	detectMu      sync.Mutex
+	detected      ResolvedPlayer
+	detectedFound bool
+	detectedAt    time.Time
 }
 
 // PlayerDef defines a player binary and its seek flag format
 type PlayerDef struct {
-	Binary   string
-	SeekFlag string // Use %d for seconds placeholder, e.g., "--start=%d" or "-ss %d"
+	Binary        string
+	SeekFlag      string   // Use %d for seconds placeholder, e.g., "--start=%d" or "-ss %d"
+	URLBeforeSeek bool     // Some players (notably PotPlayer) expect the media URL before switches
+	ProgramPaths  []string // Conventional paths relative to Windows Program Files roots
+}
+
+// ResolvedPlayer keeps the player identity separate from the executable path.
+// This matters in WSL, where an App Paths lookup returns an absolute Windows
+// install path rather than the short binary name used to select seek behavior.
+type ResolvedPlayer struct {
+	Definition PlayerDef
+	Executable string
 }
 
 // Platform-specific player lists, ordered by priority (first match wins)
@@ -45,21 +61,38 @@ var darwinPlayers = []PlayerDef{
 	{Binary: "vlc", SeekFlag: "--start-time=%d"},
 }
 
-// Windows detection looks up by base name; exec.LookPath consults PATHEXT
-// so "mpv" resolves to mpv.exe (e.g. scoop's shim).
+// Windows players, used both by native Windows and WSL interop. Under WSL they
+// are probed after the native Linux list so an intentional WSLg install wins.
 var windowsPlayers = []PlayerDef{
-	{Binary: "mpv", SeekFlag: "--start=%d"},
-	{Binary: "vlc", SeekFlag: "--start-time=%d"},
+	{
+		Binary:        "PotPlayerMini64.exe",
+		SeekFlag:      "/seek=%d",
+		URLBeforeSeek: true,
+		ProgramPaths:  []string{`DAUM\PotPlayer\PotPlayerMini64.exe`},
+	},
+	{
+		Binary:        "PotPlayerMini.exe",
+		SeekFlag:      "/seek=%d",
+		URLBeforeSeek: true,
+		ProgramPaths:  []string{`DAUM\PotPlayer\PotPlayerMini.exe`},
+	},
+	{Binary: "mpv.exe", SeekFlag: "--start=%d", ProgramPaths: []string{`mpv\mpv.exe`}},
+	{Binary: "vlc.exe", SeekFlag: "--start-time=%d", ProgramPaths: []string{`VideoLAN\VLC\vlc.exe`}},
 }
 
-// Windows-side players reachable from WSL via interop. Probed after the
-// native Linux list so a Linux install (e.g. via WSLg) still wins.
-var wslPlayers = []PlayerDef{
-	{Binary: "PotPlayerMini64.exe", SeekFlag: "/seek=%d"},
-	{Binary: "PotPlayerMini.exe", SeekFlag: "/seek=%d"},
-	{Binary: "mpv.exe", SeekFlag: "--start=%d"},
-	{Binary: "vlc.exe", SeekFlag: "--start-time=%d"},
+// Kept as an alias because WSL uses the same Windows-side player definitions.
+var wslPlayers = windowsPlayers
+
+var windowsAppPathRoots = []string{
+	`HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths`,
+	`HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths`,
+	`HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths`,
 }
+
+const (
+	windowsDiscoveryTimeout = 5 * time.Second
+	negativeDetectionTTL    = 30 * time.Second
+)
 
 func lookPathOK(binary string) bool {
 	_, err := exec.LookPath(binary)
@@ -115,12 +148,21 @@ func (l *Launcher) Launch(offset time.Duration, playlistStart int, media ...doma
 
 	// Tier 2: Auto-detect known players
 	if player, found := l.detectPlayer(); found {
-		l.logger.Info("auto-detected player", "binary", player.Binary)
-		return l.execPlayer(player, offsetSecs, playlistStart, media...)
+		l.logger.Info("auto-detected player", "binary", player.Definition.Binary,
+			"executable", player.Executable)
+		cmd, socket, err := l.execPlayer(player, offsetSecs, playlistStart, media...)
+		if err != nil {
+			// Do not pin a stale/broken executable for the rest of the process.
+			l.invalidateDetectedPlayer()
+			return nil, "", err
+		}
+		return cmd, socket, nil
 	}
 
-	// Tier 3: System default fallback (xdg-open/open)
-	l.logger.Warn("no video players found, falling back to system default")
+	// Tier 3: Best-effort system URL handler fallback. For HTTP media URLs this
+	// is normally a browser, whose container/codec support is more limited than
+	// a real media player's.
+	l.logger.Warn("no video players found, opening raw media URL with system handler; codec support may be limited")
 	if offsetSecs > 0 {
 		l.logger.Warn("resume not supported with system default player - starting from beginning")
 	}
@@ -180,38 +222,231 @@ func subFileArgs(binary string, subs []domain.Subtitle) []string {
 }
 
 // detectPlayer returns the first available player from the platform-specific list
-func (l *Launcher) detectPlayer() (PlayerDef, bool) {
+func (l *Launcher) detectPlayer() (ResolvedPlayer, bool) {
+	l.detectMu.Lock()
+	defer l.detectMu.Unlock()
+
+	if l.detectedFound {
+		return l.detected, true
+	}
+	if !l.detectedAt.IsZero() && time.Since(l.detectedAt) < negativeDetectionTTL {
+		return ResolvedPlayer{}, false
+	}
+
+	l.detected, l.detectedFound = detectPlayerUncached()
+	l.detectedAt = time.Now()
+	return l.detected, l.detectedFound
+}
+
+func (l *Launcher) invalidateDetectedPlayer() {
+	l.detectMu.Lock()
+	defer l.detectMu.Unlock()
+	l.detected = ResolvedPlayer{}
+	l.detectedFound = false
+	l.detectedAt = time.Time{}
+}
+
+func detectPlayerUncached() (ResolvedPlayer, bool) {
+	ctx, cancel := context.WithTimeout(context.Background(), windowsDiscoveryTimeout)
+	defer cancel()
+
 	var candidates []PlayerDef
+	underWSL := runtime.GOOS == "linux" && isWSL()
+	searchWindowsInstalls := false
 
 	switch runtime.GOOS {
 	case "darwin":
 		candidates = darwinPlayers
 	case "linux":
 		candidates = linuxPlayers
-		if isWSL() {
+		if underWSL {
+			// WSL can execute Windows binaries via interop; a Windows-side
+			// player on PATH is a perfectly good player.
 			candidates = append(append([]PlayerDef{}, linuxPlayers...), wslPlayers...)
+			searchWindowsInstalls = true
 		}
 	case "windows":
 		candidates = windowsPlayers
+		searchWindowsInstalls = true
 	default:
-		return PlayerDef{}, false
+		return ResolvedPlayer{}, false
 	}
 
+	// Honor PATH first. In WSL this also ensures an explicitly exposed
+	// Windows player wins over a different player merely found in the registry.
 	for _, p := range candidates {
 		if path, err := exec.LookPath(p.Binary); err == nil && path != "" {
-			return p, true
+			return ResolvedPlayer{Definition: p, Executable: path}, true
 		}
 	}
-	return PlayerDef{}, false
+
+	// CreateProcess/exec.LookPath does not consult Windows "App Paths". GUI
+	// installers commonly register there without adding themselves to PATH, so
+	// query it explicitly on native Windows and through interop on WSL.
+	if searchWindowsInstalls {
+		for _, p := range windowsPlayers {
+			if executable, found := resolveWindowsAppPath(ctx, p, underWSL); found {
+				return ResolvedPlayer{Definition: p, Executable: executable}, true
+			}
+		}
+
+		// App Paths is the authoritative registration mechanism. Only after all
+		// registered candidates miss do we try conventional install locations.
+		programFilesRoots := windowsProgramFilesRoots(ctx, underWSL)
+		for _, p := range windowsPlayers {
+			if executable, found := resolveWindowsProgramPath(ctx, p, programFilesRoots, underWSL); found {
+				return ResolvedPlayer{Definition: p, Executable: executable}, true
+			}
+		}
+	}
+
+	return ResolvedPlayer{}, false
+}
+
+func resolveWindowsAppPath(ctx context.Context, player PlayerDef, underWSL bool) (string, bool) {
+	for _, root := range windowsAppPathRoots {
+		key := root + `\` + player.Binary
+		if windowsPath, found := queryRegistryValue(ctx, key, "/ve"); found {
+			if executable, ok := usableWindowsExecutable(ctx, windowsPath, underWSL); ok {
+				return executable, true
+			}
+		}
+	}
+	return "", false
+}
+
+// resolveWindowsProgramPath checks a short list of conventional locations. It
+// deliberately avoids recursively scanning a mounted Windows drive.
+func resolveWindowsProgramPath(ctx context.Context, player PlayerDef, roots []string, underWSL bool) (string, bool) {
+	for _, root := range roots {
+		for _, relative := range player.ProgramPaths {
+			windowsPath := strings.TrimRight(root, `\/`) + `\` + strings.TrimLeft(relative, `\/`)
+			if executable, ok := usableWindowsExecutable(ctx, windowsPath, underWSL); ok {
+				return executable, true
+			}
+		}
+	}
+
+	return "", false
+}
+
+func queryRegistryValue(ctx context.Context, key string, valueArgs ...string) (string, bool) {
+	if !lookPathOK("reg.exe") {
+		return "", false
+	}
+
+	args := append([]string{"query", key}, valueArgs...)
+	output, err := exec.CommandContext(ctx, "reg.exe", args...).Output()
+	if err != nil {
+		return "", false
+	}
+	return parseRegistryString(output)
+}
+
+func parseRegistryString(output []byte) (string, bool) {
+	for _, line := range strings.Split(string(output), "\n") {
+		for _, valueType := range []string{"REG_EXPAND_SZ", "REG_SZ"} {
+			if index := strings.Index(line, valueType); index >= 0 {
+				value := cleanWindowsExecutable(line[index+len(valueType):])
+				return value, value != ""
+			}
+		}
+	}
+	return "", false
+}
+
+func cleanWindowsExecutable(value string) string {
+	value = strings.TrimSpace(value)
+	if strings.HasPrefix(value, `"`) {
+		if end := strings.Index(value[1:], `"`); end >= 0 {
+			return value[1 : end+1]
+		}
+	}
+	return strings.Trim(value, `"`)
+}
+
+func usableWindowsExecutable(ctx context.Context, windowsPath string, underWSL bool) (string, bool) {
+	windowsPath = expandWindowsEnvironment(ctx, windowsPath, underWSL)
+	executable := windowsPath
+	if underWSL {
+		output, err := exec.CommandContext(ctx, "wslpath", "-u", windowsPath).Output()
+		if err != nil {
+			return "", false
+		}
+		executable = strings.TrimSpace(string(output))
+	}
+
+	info, err := os.Stat(executable)
+	return executable, err == nil && !info.IsDir()
+}
+
+var windowsEnvironmentReference = regexp.MustCompile(`%[A-Za-z0-9_()]+%`)
+
+func expandWindowsEnvironment(ctx context.Context, value string, underWSL bool) string {
+	return windowsEnvironmentReference.ReplaceAllStringFunc(value, func(reference string) string {
+		name := reference[1 : len(reference)-1]
+		if !underWSL {
+			if expanded, found := os.LookupEnv(name); found {
+				return expanded
+			}
+			return reference
+		}
+
+		if !lookPathOK("cmd.exe") {
+			return reference
+		}
+		output, err := exec.CommandContext(ctx, "cmd.exe", "/d", "/s", "/c", "echo "+reference).Output()
+		if err != nil {
+			return reference
+		}
+		expanded := strings.TrimSpace(string(output))
+		if expanded == "" || strings.EqualFold(expanded, reference) {
+			return reference
+		}
+		return expanded
+	})
+}
+
+func windowsProgramFilesRoots(ctx context.Context, underWSL bool) []string {
+	if !underWSL {
+		return uniqueNonEmpty(os.Getenv("ProgramFiles"), os.Getenv("ProgramFiles(x86)"))
+	}
+
+	const currentVersionKey = `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion`
+	var roots []string
+	for _, valueName := range []string{"ProgramFilesDir", "ProgramFilesDir (x86)"} {
+		if root, found := queryRegistryValue(ctx, currentVersionKey, "/v", valueName); found {
+			roots = append(roots, root)
+		}
+	}
+	return uniqueNonEmpty(roots...)
+}
+
+func uniqueNonEmpty(values ...string) []string {
+	seen := make(map[string]struct{}, len(values))
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		key := strings.ToLower(value)
+		if value == "" {
+			continue
+		}
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, value)
+	}
+	return out
 }
 
 // execPlayer launches the detected player with optional seek offset and playlist start
-func (l *Launcher) execPlayer(player PlayerDef, offsetSecs int, playlistStart int, media ...domain.PlayableMedia) (*exec.Cmd, string, error) {
-
-	args := []string{}
+func (l *Launcher) execPlayer(player ResolvedPlayer, offsetSecs int, playlistStart int, media ...domain.PlayableMedia) (*exec.Cmd, string, error) {
+	definition := player.Definition
+	args := playerDefaultArgs(definition, offsetSecs)
 	var ipcSocket string
 
-	isMpv := player.Binary == "mpv"
+	isMpv := definition.Binary == "mpv"
 
 	// Enable IPC for mpv
 	if isMpv {
@@ -223,69 +458,110 @@ func (l *Launcher) execPlayer(player PlayerDef, offsetSecs int, playlistStart in
 	}
 
 	// Add seek flag if we have an offset and the player supports it
-	if offsetSecs > 0 && player.SeekFlag != "" && !isMpv {
-		formattedFlag := fmt.Sprintf(player.SeekFlag, offsetSecs)
-		// Split flags like "-ss 10" into separate args
-		args = append(args, strings.Fields(formattedFlag)...)
+	seekArgs := formatSeekArgs(definition.SeekFlag, offsetSecs)
+	if offsetSecs > 0 && !isMpv && !definition.URLBeforeSeek {
+		args = append(args, seekArgs...)
 	}
 
 	if !isMpv && len(media) > playlistStart {
-		if subArgs := subFileArgs(player.Binary, media[playlistStart].Subtitles); len(subArgs) > 0 {
+		if subArgs := subFileArgs(definition.Binary, media[playlistStart].Subtitles); len(subArgs) > 0 {
 			args = append(args, subArgs...)
 		} else if len(media[playlistStart].Subtitles) > 0 {
 			l.logger.Warn("external subtitles not supported by player - skipping",
-				"binary", player.Binary, "count", len(media[playlistStart].Subtitles))
+				"binary", definition.Binary, "count", len(media[playlistStart].Subtitles))
 		}
 	}
 
 	for i, m := range media {
 		if isMpv {
 			args = append(args, "--{")
-			if subArgs := subFileArgs(player.Binary, m.Subtitles); len(subArgs) > 0 {
+			if subArgs := subFileArgs(definition.Binary, m.Subtitles); len(subArgs) > 0 {
 				args = append(args, subArgs...)
 			}
-			if offsetSecs > 0 && i == playlistStart && player.SeekFlag != "" {
-				formattedFlag := fmt.Sprintf(player.SeekFlag, offsetSecs)
-				args = append(args, strings.Fields(formattedFlag)...)
+			if offsetSecs > 0 && i == playlistStart && definition.SeekFlag != "" {
+				args = append(args, formatSeekArgs(definition.SeekFlag, offsetSecs)...)
 			}
 			args = append(args, m.URL)
 			args = append(args, "--}")
 		} else {
 			args = append(args, m.URL)
+			if i == playlistStart && definition.URLBeforeSeek {
+				args = append(args, seekArgs...)
+			}
 		}
 	}
 
-	l.logger.Debug("executing player", "binary", player.Binary, "args", redactTokens(args))
-	cmd := exec.Command(player.Binary, args...)
+	l.logger.Debug("executing player", "binary", definition.Binary, "executable", player.Executable, "args", redactTokens(args))
+	cmd := exec.Command(player.Executable, args...)
 	if err := cmd.Start(); err != nil {
 		return nil, "", err
 	}
 	return cmd, ipcSocket, nil
 }
 
+func formatSeekArgs(flag string, offsetSecs int) []string {
+	flag = strings.TrimSpace(flag)
+	if flag == "" || offsetSecs <= 0 {
+		return nil
+	}
+
+	offset := strconv.Itoa(offsetSecs)
+	switch {
+	case strings.Contains(flag, "%d"):
+		flag = strings.ReplaceAll(flag, "%d", offset)
+	case strings.HasSuffix(flag, "="):
+		// Backward-compatible with the originally documented "--start=" form.
+		flag += offset
+	default:
+		flag += " " + offset
+	}
+	return strings.Fields(flag)
+}
+
+func playerArgs(player PlayerDef, url string, offsetSecs int) []string {
+	seekArgs := formatSeekArgs(player.SeekFlag, offsetSecs)
+	defaultArgs := playerDefaultArgs(player, offsetSecs)
+	if player.URLBeforeSeek {
+		args := append([]string{url}, defaultArgs...)
+		return append(args, seekArgs...)
+	}
+	args := append([]string{}, defaultArgs...)
+	args = append(args, seekArgs...)
+	return append(args, url)
+}
+
+func playerDefaultArgs(player PlayerDef, offsetSecs int) []string {
+	if offsetSecs > 0 && strings.EqualFold(strings.TrimSuffix(player.Binary, ".exe"), "vlc") {
+		return []string{"--no-one-instance"}
+	}
+	return nil
+}
+
+func configuredPlayerArgs(configuredArgs []string, definition PlayerDef, knownPlayer bool, url string, seekArgs []string) []string {
+	if knownPlayer && definition.URLBeforeSeek {
+		args := append([]string{url}, configuredArgs...)
+		return append(args, seekArgs...)
+	}
+	args := append([]string{}, configuredArgs...)
+	args = append(args, seekArgs...)
+	return append(args, url)
+}
+
 // launchConfigured launches the media using the user-configured player
 func (l *Launcher) launchConfigured(offsetSecs int, playlistStart int, media ...domain.PlayableMedia) (*exec.Cmd, string, error) {
-
 	args := append([]string{}, l.args...)
+	definition, knownPlayer := l.lookupPlayerDef(l.command)
+	name := strings.TrimSuffix(executableName(l.command), filepath.Ext(executableName(l.command)))
+	isMpv := strings.EqualFold(name, "mpv")
 
-	bin := strings.ToLower(strings.TrimSuffix(filepath.Base(l.command), filepath.Ext(l.command)))
-	isMpv := bin == "mpv"
-
-	// Add seek offset: user-configured flag takes precedence, then table lookup
-	if offsetSecs > 0 && !isMpv {
-		seekFlag := l.seekFlag
-		if seekFlag == "" {
-			// Fall back to table lookup for known players
-			seekFlag = l.lookupSeekFlag(l.command)
-		}
-
-		if seekFlag != "" {
-			formattedFlag := fmt.Sprintf(seekFlag, offsetSecs)
-			args = append(args, strings.Fields(formattedFlag)...)
-		} else {
-			l.logger.Warn("cannot set start offset - unknown player, configure start_flag in config",
-				"command", l.command, "offset", offsetSecs)
-		}
+	seekFlag := l.seekFlag
+	if seekFlag == "" {
+		seekFlag = definition.SeekFlag
+	}
+	seekArgs := formatSeekArgs(seekFlag, offsetSecs)
+	if offsetSecs > 0 && !isMpv && len(seekArgs) == 0 {
+		l.logger.Warn("cannot set start offset - unknown player, configure start_flag in config",
+			"command", l.command, "offset", offsetSecs)
 	}
 
 	if !isMpv && len(media) > playlistStart {
@@ -309,24 +585,19 @@ func (l *Launcher) launchConfigured(offsetSecs int, playlistStart int, media ...
 				args = append(args, subArgs...)
 			}
 			if offsetSecs > 0 && i == playlistStart {
-				seekFlag := l.seekFlag
-				if seekFlag == "" {
-					seekFlag = l.lookupSeekFlag(l.command)
-				}
-				if seekFlag != "" {
-					formattedFlag := fmt.Sprintf(seekFlag, offsetSecs)
-					args = append(args, strings.Fields(formattedFlag)...)
-				} else if l.command != "mpv" { // If they specified a custom seek flag or it's standard mpv
-					// This warning only fires if they have an unknown binary called mpv
-					l.logger.Warn("cannot set start offset - configure start_flag in config",
-						"command", l.command, "offset", offsetSecs)
-				}
+				args = append(args, seekArgs...)
 			}
 			args = append(args, m.URL)
 			args = append(args, "--}")
 		} else {
+			if i == 0 && !(knownPlayer && definition.URLBeforeSeek) {
+				args = append(args, seekArgs...)
+			}
 			args = append(args, m.URL)
 		}
+	}
+	if !isMpv && knownPlayer && definition.URLBeforeSeek {
+		args = append(args, seekArgs...)
 	}
 
 	l.logger.Debug("launching configured player", "command", l.command, "args", redactTokens(args))
@@ -357,19 +628,29 @@ func (l *Launcher) launchConfigured(offsetSecs int, playlistStart int, media ...
 
 // lookupSeekFlag finds the seek flag for a known player binary
 func (l *Launcher) lookupSeekFlag(binary string) string {
-	for _, table := range [][]PlayerDef{linuxPlayers, darwinPlayers, wslPlayers} {
+	player, _ := l.lookupPlayerDef(binary)
+	return player.SeekFlag
+}
+
+func (l *Launcher) lookupPlayerDef(binary string) (PlayerDef, bool) {
+	wanted := executableName(binary)
+	for _, table := range [][]PlayerDef{linuxPlayers, darwinPlayers, windowsPlayers} {
 		for _, p := range table {
-			if p.Binary == binary {
-				return p.SeekFlag
+			if strings.EqualFold(executableName(p.Binary), wanted) {
+				return p, true
 			}
 		}
 	}
-	for _, p := range windowsPlayers {
-		if p.Binary == binary {
-			return p.SeekFlag
-		}
+	return PlayerDef{}, false
+}
+
+func executableName(command string) string {
+	command = strings.Trim(strings.TrimSpace(command), `"`)
+	command = strings.ReplaceAll(command, `\`, "/")
+	if index := strings.LastIndex(command, "/"); index >= 0 {
+		return command[index+1:]
 	}
-	return ""
+	return command
 }
 
 // launchMacOSApp launches a macOS GUI app using 'open -a'
@@ -396,10 +677,12 @@ func (l *Launcher) launchDefault(url string) (*exec.Cmd, error) {
 	case "darwin":
 		cmd = exec.Command("open", url)
 	case "windows":
-		// `start` is a cmd.exe builtin, not a standalone exe. The empty "" is
-		// a window title — required because `start` treats the first quoted
-		// arg as a title and would otherwise swallow the URL.
-		cmd = exec.Command("cmd", "/c", "start", "", url)
+		switch {
+		case lookPathOK("rundll32.exe"):
+			cmd = exec.Command("rundll32.exe", "url.dll,FileProtocolHandler", url)
+		case lookPathOK("explorer.exe"):
+			cmd = exec.Command("explorer.exe", url)
+		}
 	default:
 		// Linux and other Unix-like systems
 		if isWSL() {
@@ -423,6 +706,9 @@ func (l *Launcher) launchDefault(url string) (*exec.Cmd, error) {
 			}
 			cmd = exec.Command("xdg-open", url)
 		}
+	}
+	if cmd == nil {
+		return nil, fmt.Errorf("no media player or system URL handler found — install mpv (or vlc), or set player.command in config.yaml")
 	}
 
 	l.logger.Debug("launching with system default", "os", runtime.GOOS, "command", cmd.Path)
