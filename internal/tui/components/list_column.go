@@ -889,6 +889,55 @@ func (c *ListColumn) ClearFilter() {
 	c.clearFilter()
 }
 
+// HandleMouse handles mouse input for the list column.
+// relY is the Y coordinate relative to the column's content area
+// (inside borders: relY=0 is the title, relY=1 is the scroll header "↑ more"/" ",
+// relY>=2 are item lines).
+// Returns the updated column and whether the selection changed.
+func (c *ListColumn) HandleMouse(msg tea.MouseMsg, relY int) (*ListColumn, bool) {
+	if !c.focused {
+		return c, false
+	}
+
+	count := c.ItemCount()
+	if count == 0 {
+		return c, false
+	}
+
+	switch {
+	case msg.Button == tea.MouseButtonWheelUp:
+		if c.cursor > 0 {
+			c.cursor--
+			c.ensureVisible()
+			return c, true
+		}
+		return c, false
+
+	case msg.Button == tea.MouseButtonWheelDown:
+		if c.cursor < count-1 {
+			c.cursor++
+			c.ensureVisible()
+			return c, true
+		}
+		return c, false
+
+	case msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft:
+		// relY=0 is title, relY=1 is header, relY>=2 are items
+		itemRelY := relY - 2
+		if itemRelY >= 0 && itemRelY < c.maxVisible {
+			idx := c.offset + itemRelY
+			if idx < count {
+				c.cursor = idx
+				c.ensureVisible()
+				return c, true
+			}
+		}
+		return c, false
+	}
+
+	return c, false
+}
+
 // Internal methods
 
 func (c *ListColumn) recalcMaxVisible() {
