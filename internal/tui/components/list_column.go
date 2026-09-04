@@ -377,9 +377,13 @@ func (c *ListColumn) SetItems(rawItems interface{}) {
 			c.items = WrapPlaylistItems(v)
 		case c.columnType == ColumnTypeEpisodes:
 			c.items = WrapEpisodes(v)
+		case c.columnType == ColumnTypeMixed:
+			// Virtual mixed views such as Continue Watching must retain their
+			// identity even when the current response happens to contain only
+			// episodes or only movies. Poster selection and row rendering both
+			// rely on that identity.
+			c.items = WrapMovies(v)
 		case mediaItemsAreMixed(v):
-			// Continue Watching can contain both movies and episodes. Keep it mixed
-			// instead of selecting a renderer based solely on the first item.
 			c.items = WrapMovies(v)
 			c.columnType = ColumnTypeMixed
 		case len(v) > 0 && v[0].Type == domain.MediaTypeEpisode:

@@ -259,8 +259,8 @@ func TestListColumnContinueWatchingMixedItemsShowEpisodeSeries(t *testing.T) {
 
 // TestListColumnContinueWatchingShowTitle reproduces the real runtime path:
 // the Continue Watching column is created as Mixed, SetShowShowTitle(true) is set,
-// then SetItems coerces the column type to Episodes (episode-only list). The
-// dispatched renderer must still show the series name.
+// then an episode-only response is loaded. The column must remain mixed so it
+// continues to support both preview selection and Continue Watching rendering.
 func TestListColumnContinueWatchingShowTitle(t *testing.T) {
 	eps := []*domain.MediaItem{
 		{
@@ -276,8 +276,8 @@ func TestListColumnContinueWatchingShowTitle(t *testing.T) {
 	col.SetShowShowTitle(true)
 	col.SetItems(eps)
 
-	if col.ColumnType() != ColumnTypeEpisodes {
-		t.Fatalf("expected ColumnTypeEpisodes after SetItems (real path), got %v", col.ColumnType())
+	if col.ColumnType() != ColumnTypeMixed {
+		t.Fatalf("expected Continue Watching to remain mixed, got %v", col.ColumnType())
 	}
 
 	got := col.renderItem(0, false, 80)

@@ -279,6 +279,29 @@ func TestUpdateInspectorDoesNotRequestPosterForEpisodePane(t *testing.T) {
 	}
 }
 
+func TestUpdateInspectorRequestsPosterForEpisodeOnlyContinueWatching(t *testing.T) {
+	col := components.NewListColumn(components.ColumnTypeMixed, "Continue Watching")
+	col.SetItems([]*domain.MediaItem{{
+		ID:           "episode-1",
+		Type:         domain.MediaTypeEpisode,
+		ShowThumbURL: "https://media/show-poster",
+	}})
+
+	m := Model{
+		ColumnStack: NewColumnStack(),
+		Inspector:   components.NewInspector(),
+		MediaClient: &posterClientStub{},
+	}
+	m.ColumnStack.Push(col, 0)
+
+	if cmd := m.updateInspector(); cmd == nil {
+		t.Fatal("expected a poster request for episode-only Continue Watching")
+	}
+	if m.posterItemID != "episode-1" {
+		t.Fatalf("poster item ID = %q", m.posterItemID)
+	}
+}
+
 func TestUpdateInspectorRetainsShowPreviewInEpisodePane(t *testing.T) {
 	showCol := components.NewListColumn(components.ColumnTypeShows, "Shows")
 	showCol.SetItems([]*domain.Show{{ID: "show-1", ThumbURL: "https://media/show-poster"}})
