@@ -264,6 +264,9 @@ func RenderListRow(parts []RowPart, selected bool, width int) string {
 		if selected {
 			style = style.Background(bg)
 		}
+		if part.Bold {
+			style = style.Bold(true)
+		}
 		result += style.Render(part.Text)
 		visibleLen += lipgloss.Width(part.Text)
 	}
@@ -292,4 +295,5 @@ func RenderListRow(parts []RowPart, selected bool, width int) string {
 type RowPart struct {
 	Text       string
 	Foreground *lipgloss.Color
+	Bold       bool
 }

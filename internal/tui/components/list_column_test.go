@@ -3,6 +3,7 @@ package components
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/SuperCoolPencil/cue/internal/domain"
 	tea "github.com/charmbracelet/bubbletea"
@@ -224,7 +225,7 @@ func TestListColumnEpisodeShowTitle(t *testing.T) {
 	// With the flag, the series name prefixes the episode info
 	col.SetShowShowTitle(true)
 	got = col.renderEpisodeItem(*ep, false, 80)
-	want := "Breaking Bad - S01E01 Pilot"
+	want := "[S01E01]  Breaking Bad  /  Pilot"
 	if !strings.Contains(got, want) {
 		t.Errorf("expected rendered line to contain %q, got %q", want, got)
 	}
@@ -251,7 +252,7 @@ func TestListColumnContinueWatchingMixedItemsShowEpisodeSeries(t *testing.T) {
 	}
 
 	got := col.renderItem(1, false, 80)
-	want := "Breaking Bad - S01E01 Pilot"
+	want := "[S01E01]  Breaking Bad  /  Pilot"
 	if !strings.Contains(got, want) {
 		t.Errorf("expected rendered line to contain %q, got %q", want, got)
 	}
@@ -281,8 +282,32 @@ func TestListColumnContinueWatchingShowTitle(t *testing.T) {
 	}
 
 	got := col.renderItem(0, false, 80)
-	want := "Breaking Bad - S01E01 Pilot"
+	want := "[S01E01]  Breaking Bad  /  Pilot"
 	if !strings.Contains(got, want) {
 		t.Errorf("expected drilled Continue Watching row to contain %q, got %q", want, got)
+	}
+}
+
+func TestListColumnContinueWatchingEpisodeShowsProgress(t *testing.T) {
+	ep := &domain.MediaItem{
+		ID:         "ep1",
+		Title:      "Pilot",
+		Type:       domain.MediaTypeEpisode,
+		ShowTitle:  "Breaking Bad",
+		SeasonNum:  1,
+		EpisodeNum: 1,
+		Duration:   50 * time.Minute,
+		ViewOffset: 21 * time.Minute,
+	}
+	col := NewListColumn(ColumnTypeMixed, "Continue Watching")
+	col.SetShowShowTitle(true)
+	col.SetItems([]*domain.MediaItem{ep})
+
+	got := col.renderItem(0, false, 60)
+	if !strings.Contains(got, "[S01E01]  Breaking Bad  /  Pilot") {
+		t.Errorf("expected episode hierarchy in row, got %q", got)
+	}
+	if !strings.Contains(got, "42%") {
+		t.Errorf("expected watch progress in row, got %q", got)
 	}
 }

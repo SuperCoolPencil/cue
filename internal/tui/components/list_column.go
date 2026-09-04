@@ -1314,23 +1314,30 @@ func (c *ListColumn) renderEpisodeItem(item domain.MediaItem, selected bool, wid
 		indicatorChar = " "
 	}
 
-	// In Continue Watching, show the series name first: "Show - S01E05 Title"
+	// Continue Watching benefits from a more scannable hierarchy than a regular
+	// episode list: episode code, then show and episode title, with progress at
+	// the far edge of the row.
 	if c.showShowTitle && item.ShowTitle != "" {
-		title := fmt.Sprintf("%s - %s %s", item.ShowTitle, item.EpisodeCode(), item.Title)
-
-		availableForTitle := width - 4
 		tag := c.sortTag(&item)
+		if tag == "" {
+			tag = watchProgressTag(item)
+		}
+
+		code := "[" + item.EpisodeCode() + "]"
+		// margins(2), indicator+space(2), code+two spaces, and optional tag.
+		availableForTitle := width - 4 - len(code) - 2
 		if tag != "" {
 			availableForTitle -= len(tag) + 1
 		}
-		if availableForTitle < 5 {
-			availableForTitle = 5
-		}
-		title = styles.Truncate(title, availableForTitle)
+		showTitle, episodeTitle := splitEpisodeTitles(item.ShowTitle, item.Title, availableForTitle)
+		dimGray := styles.DimGray
 
 		parts := appendSortTag([]styles.RowPart{
 			{Text: indicatorChar, Foreground: &indicatorFg},
-			{Text: " " + title, Foreground: nil},
+			{Text: " " + code, Foreground: &styles.PlexOrange},
+			{Text: "  " + showTitle, Foreground: nil, Bold: true},
+			{Text: "  /  ", Foreground: &dimGray},
+			{Text: episodeTitle, Foreground: &dimGray},
 		}, tag, width)
 
 		return styles.RenderListRow(parts, selected, width)
@@ -1464,11 +1471,12 @@ func (c *ListColumn) renderMixedItem(item domain.ListItem, selected bool, width 
 		indicatorChar = " "
 	}
 
-	// Build title with year. A Continue Watching column can contain both
-	// movies and episodes, so format episodes with their series context here too.
+	// A Continue Watching column can contain both movies and episodes. Give
+	// episodes their own compact, progress-aware layout instead of flattening
+	// all of their context into a single title.
 	title := item.GetTitle()
 	if mediaItem, ok := item.(*domain.MediaItem); ok && c.showShowTitle && mediaItem.Type == domain.MediaTypeEpisode && mediaItem.ShowTitle != "" {
-		title = fmt.Sprintf("%s - %s %s", mediaItem.ShowTitle, mediaItem.EpisodeCode(), mediaItem.Title)
+		return c.renderEpisodeItem(*mediaItem, selected, width)
 	} else if year := item.GetYear(); year > 0 {
 		title = fmt.Sprintf("%s (%d)", title, year)
 	}
@@ -1490,6 +1498,33 @@ func (c *ListColumn) renderMixedItem(item domain.ListItem, selected bool, width 
 	}, tag, width)
 
 	return styles.RenderListRow(parts, selected, width)
+}
+
+// watchProgressTag returns a compact percentage for resumable media. It is
+// intentionally omitted when duration data is unavailable.
+func watchProgressTag(item domain.MediaItem) string {
+	if item.Duration <= 0 || item.ViewOffset <= 0 {
+		return ""
+	}
+
+	percent := int(float64(item.ViewOffset) / float64(item.Duration) * 100)
+	percent = min(99, max(1, percent))
+	return fmt.Sprintf("%d%%", percent)
+}
+
+// splitEpisodeTitles keeps the show visually dominant while allowing a short
+// episode title to use space the show does not need.
+func splitEpisodeTitles(show, episode string, width int) (string, string) {
+	const separatorWidth = 5 // "  /  "
+	available := max(2, width-separatorWidth)
+	showWidth := min(len(show), max(1, available/2))
+	episodeWidth := available - showWidth
+	if episodeWidth > len(episode) {
+		showWidth = min(len(show), showWidth+episodeWidth-len(episode))
+		episodeWidth = available - showWidth
+	}
+
+	return styles.Truncate(show, showWidth), styles.Truncate(episode, max(1, episodeWidth))
 }
 
 // mediaItemsAreMixed reports whether a media slice contains more than one type.
