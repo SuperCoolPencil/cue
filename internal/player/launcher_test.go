@@ -9,7 +9,50 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/SuperCoolPencil/cue/internal/domain"
 )
+
+type lifecyclePlaybackClient struct{}
+
+func (lifecyclePlaybackClient) ResolvePlayable(context.Context, string) (domain.PlayableMedia, error) {
+	return domain.PlayableMedia{URL: "https://example.test/video"}, nil
+}
+func (lifecyclePlaybackClient) MarkPlayed(context.Context, string) error   { return nil }
+func (lifecyclePlaybackClient) MarkUnplayed(context.Context, string) error { return nil }
+func (lifecyclePlaybackClient) UpdateProgress(context.Context, string, int64) error {
+	return nil
+}
+func (lifecyclePlaybackClient) ReportTimeline(context.Context, string, string, int64, int64) error {
+	return nil
+}
+
+func TestPlaybackMonitoringOutlivesStartupContext(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test uses a POSIX shell")
+	}
+	launcher := NewLauncher("/bin/sh", []string{"-c", "sleep 0.2"}, "", nil)
+	service := NewService(launcher, lifecyclePlaybackClient{}, nil)
+	ctx, cancel := context.WithCancel(context.Background())
+
+	handle, err := service.Play(ctx, domain.MediaItem{ID: "episode-1", Title: "Episode"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cancel() // PlayItemCmd cancels its startup context immediately after return.
+
+	select {
+	case <-handle.ResultCh:
+		t.Fatal("playback monitoring stopped when the startup context was cancelled")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	select {
+	case <-handle.ResultCh:
+	case <-time.After(2 * time.Second):
+		t.Fatal("playback monitoring did not finish after the player exited")
+	}
+}
 
 func TestLookupSeekFlag(t *testing.T) {
 	launcher := NewLauncher("", nil, "", slog.Default())

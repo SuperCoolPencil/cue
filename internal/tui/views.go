@@ -291,7 +291,7 @@ func (m Model) renderFooter() string {
 		frames := []string{"▶", "▷"}
 		icon := styles.AccentStyle.Render(frames[m.SpinnerFrame/5%len(frames)])
 		title := styles.Truncate(m.isPlayingTitle, 40)
-		left = icon + " " + styles.DimStyle.Render("Now Playing: "+title)
+		left = icon + " " + styles.DimStyle.Render("Playing: "+title)
 	} else if m.Loading {
 		statusText := "Loading..."
 

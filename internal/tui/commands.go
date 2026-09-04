@@ -200,14 +200,14 @@ func WaitForPlaybackCmd(resultCh <-chan player.ScrobbleResult) tea.Cmd {
 }
 
 // ListenForPlaybackStatusCmd waits for status updates during playback
-func ListenForPlaybackStatusCmd(statusCh <-chan string) tea.Cmd {
+func ListenForPlaybackStatusCmd(statusCh <-chan player.PlaybackStatus) tea.Cmd {
 	return func() tea.Msg {
-		msg, ok := <-statusCh
+		status, ok := <-statusCh
 		if !ok {
 			return nil
 		}
 		return PlaybackStatusMsg{
-			Message:  msg,
+			Status:   status,
 			StatusCh: statusCh,
 		}
 	}

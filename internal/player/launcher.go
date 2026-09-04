@@ -797,8 +797,12 @@ func (s *Service) playItem(ctx context.Context, offset time.Duration, item domai
 		return PlaybackHandle{}, err
 	}
 
-	// Start monitoring progress for all resolved items
-	return s.scrobbler.Monitor(ctx, cmd, ipcSocket, actualStartIdx, offset.Milliseconds(), filteredPlaybackItems...), nil
+	// ctx is scoped to URL resolution and player startup. Callers commonly
+	// cancel it as soon as this method returns, while monitoring must remain
+	// alive until the player process exits. Preserve context values without
+	// inheriting that short-lived cancellation/deadline.
+	monitorCtx := context.WithoutCancel(ctx)
+	return s.scrobbler.Monitor(monitorCtx, cmd, ipcSocket, actualStartIdx, offset.Milliseconds(), filteredPlaybackItems...), nil
 }
 
 // MarkWatched marks an item as fully watched

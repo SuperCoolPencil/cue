@@ -79,8 +79,8 @@ type PlaybackStartedMsg struct {
 
 // PlaybackStatusMsg signals a real-time status update during playback
 type PlaybackStatusMsg struct {
-	Message  string
-	StatusCh <-chan string
+	Status   player.PlaybackStatus
+	StatusCh <-chan player.PlaybackStatus
 }
 
 // PlaybackFinishedMsg signals that playback has ended

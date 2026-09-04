@@ -3,7 +3,6 @@ package player
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"os/exec"
 	"sync"
@@ -15,7 +14,13 @@ import (
 // PlaybackHandle provides channels for monitoring progress and final result.
 type PlaybackHandle struct {
 	ResultCh <-chan ScrobbleResult
-	StatusCh <-chan string
+	StatusCh <-chan PlaybackStatus
+}
+
+// PlaybackStatus describes the currently active playlist item and position.
+type PlaybackStatus struct {
+	Item       domain.MediaItem
+	PositionMs int64
 }
 
 // ScrobbleResult contains the final outcome of a monitored playback session.
@@ -61,7 +66,7 @@ func NewScrobbler(client domain.PlaybackClient, logger *slog.Logger) *Scrobbler 
 func (s *Scrobbler) Monitor(ctx context.Context, cmd *exec.Cmd, ipcSocket string, playlistStart int, offsetMs int64, items ...domain.MediaItem) PlaybackHandle {
 
 	resCh := make(chan ScrobbleResult, 1)
-	statusCh := make(chan string, 10)
+	statusCh := make(chan PlaybackStatus, 10)
 
 	go func() {
 		defer close(resCh)
@@ -254,6 +259,10 @@ func (s *Scrobbler) Monitor(ctx context.Context, cmd *exec.Cmd, ipcSocket string
 						playMu.Unlock()
 
 						s.logger.Debug("reporting progress", "item", item.Title, "pos", posMs)
+						select {
+						case statusCh <- PlaybackStatus{Item: item, PositionMs: posMs}:
+						default:
+						}
 
 						// Keep-alive timeline update; mpv events also report on change.
 						queueTimeline(item, state, posMs)
@@ -264,15 +273,7 @@ func (s *Scrobbler) Monitor(ctx context.Context, cmd *exec.Cmd, ipcSocket string
 							defer wg.Done()
 							updateCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 							defer cancel()
-							if err := s.client.UpdateProgress(updateCtx, item.ID, pos); err == nil {
-								// Format position as MM:SS for user display
-								d := time.Duration(pos) * time.Millisecond
-								select {
-								case statusCh <- fmt.Sprintf("Saved %s %02d:%02d to server", item.Title, int(d.Minutes()), int(d.Seconds())%60):
-								case <-ctx.Done():
-								default:
-								}
-							} else {
+							if err := s.client.UpdateProgress(updateCtx, item.ID, pos); err != nil {
 								s.logger.Warn("failed to update progress", "error", err)
 							}
 						}(item, posMs)

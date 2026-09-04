@@ -3,11 +3,53 @@ package tui
 import (
 	"bytes"
 	"testing"
+	"time"
 
 	"github.com/SuperCoolPencil/cue/internal/domain"
+	"github.com/SuperCoolPencil/cue/internal/library"
+	"github.com/SuperCoolPencil/cue/internal/store"
 	"github.com/SuperCoolPencil/cue/internal/tui/components"
 	tea "github.com/charmbracelet/bubbletea"
 )
+
+func TestMarkWatchedUpdatesCachedAndVisibleState(t *testing.T) {
+	cache, err := store.NewLibraryStore("", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	movie := &domain.MediaItem{ID: "movie-1", Title: "Movie", Type: domain.MediaTypeMovie}
+	if err := cache.SaveMovies("movies", []*domain.MediaItem{movie}, 1); err != nil {
+		t.Fatal(err)
+	}
+
+	column := components.NewListColumn(components.ColumnTypeMovies, "Movies")
+	column.SetItems([]*domain.MediaItem{movie})
+	stack := NewColumnStack()
+	stack.Push(column, 0)
+	m := Model{
+		ColumnStack:    stack,
+		Inspector:      components.NewInspector(),
+		LibraryService: library.NewService(nil, cache, nil),
+	}
+
+	model, _ := m.Update(MarkWatchedMsg{ItemID: movie.ID, Title: movie.Title, LibraryID: "movies"})
+	updated := model.(Model)
+	if visible := updated.ColumnStack.Top().SelectedMediaItem(); visible == nil || !visible.IsPlayed {
+		t.Fatal("visible movie was not marked watched")
+	}
+	cached, ok := cache.GetMovies("movies")
+	if !ok || len(cached) != 1 || !cached[0].IsPlayed {
+		t.Fatal("cached movie was not marked watched")
+	}
+}
+
+func TestPlaybackStatusTextIncludesEpisodeShowAndElapsedTime(t *testing.T) {
+	item := domain.MediaItem{Title: "Pilot", ShowTitle: "Example Show"}
+	got := playbackStatusText(item, 65*time.Minute)
+	if got != "Pilot - Example Show (01:05)" {
+		t.Fatalf("playback status = %q", got)
+	}
+}
 
 func TestModelPropagateWatchStatus(t *testing.T) {
 	m := &Model{

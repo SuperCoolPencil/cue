@@ -24,6 +24,18 @@ import (
 // token. Shown persistently (not auto-cleared) since action is required.
 const authFailedStatusMsg = "Session expired or revoked — press L to log out, then run cue to sign in again"
 
+func playbackStatusText(item domain.MediaItem, position time.Duration) string {
+	if position < 0 {
+		position = 0
+	}
+	title := item.Title
+	if item.ShowTitle != "" {
+		title += " - " + item.ShowTitle
+	}
+	totalMinutes := int64(position / time.Minute)
+	return fmt.Sprintf("%s (%02d:%02d)", title, totalMinutes/60, totalMinutes%60)
+}
+
 // ApplicationState represents the current state of the application
 type ApplicationState int
 
@@ -477,7 +489,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, pc
 
 	case PlaybackStartedMsg:
-		m.isPlayingTitle = msg.Item.Title
+		m.isPlayingTitle = playbackStatusText(msg.Item, msg.Item.ViewOffset)
 		m.StatusMsg = ""
 		return m, tea.Batch(
 			WaitForPlaybackCmd(msg.Handle.ResultCh),
@@ -485,7 +497,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		)
 
 	case PlaybackStatusMsg:
-		// Keep listening for more status updates — status displayed via isPlayingTitle
+		m.isPlayingTitle = playbackStatusText(msg.Status.Item, time.Duration(msg.Status.PositionMs)*time.Millisecond)
 		return m, ListenForPlaybackStatusCmd(msg.StatusCh)
 
 	case PlaybackFinishedMsg:
@@ -510,55 +522,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case MarkWatchedMsg:
 		m.StatusMsg = "Marked watched: " + msg.Title
-		// Update local state for immediate feedback
-		if top := m.ColumnStack.Top(); top != nil {
-			if item := top.SelectedItem(); item != nil {
-				switch v := item.(type) {
-				case *domain.MediaItem:
-					v.IsPlayed = true
-					v.ViewOffset = 0
-					// Propagate to parents in the stack
-					m.propagateWatchStatus(v, true)
-				case *domain.Show:
-					v.UnwatchedCount = 0
-				case *domain.Season:
-					v.UnwatchedCount = 0
-				case *components.SeasonHeader:
-					v.Season.UnwatchedCount = 0
-				}
-			}
-		}
-		// Delayed targeted refresh to avoid stale data flicker
-		cmds = append(cmds, tea.Tick(500*time.Millisecond, func(t time.Time) tea.Msg {
-			return RefreshCurrentMsg{LibraryID: msg.LibraryID}
-		}))
+		m.applyWatchState(msg.ItemID, true)
 		cmds = append(cmds, ClearStatusCmd(3*time.Second))
 		return m, tea.Batch(cmds...)
 
 	case MarkUnwatchedMsg:
 		m.StatusMsg = "Marked unwatched: " + msg.Title
-		// Update local state for immediate feedback
-		if top := m.ColumnStack.Top(); top != nil {
-			if item := top.SelectedItem(); item != nil {
-				switch v := item.(type) {
-				case *domain.MediaItem:
-					v.IsPlayed = false
-					v.ViewOffset = 0
-					// Propagate to parents in the stack
-					m.propagateWatchStatus(v, false)
-				case *domain.Show:
-					v.UnwatchedCount = v.EpisodeCount
-				case *domain.Season:
-					v.UnwatchedCount = v.EpisodeCount
-				case *components.SeasonHeader:
-					v.Season.UnwatchedCount = v.Season.EpisodeCount
-				}
-			}
-		}
-		// Delayed targeted refresh to avoid stale data flicker
-		cmds = append(cmds, tea.Tick(500*time.Millisecond, func(t time.Time) tea.Msg {
-			return RefreshCurrentMsg{LibraryID: msg.LibraryID}
-		}))
+		m.applyWatchState(msg.ItemID, false)
 		cmds = append(cmds, ClearStatusCmd(3*time.Second))
 		return m, tea.Batch(cmds...)
 
@@ -825,6 +795,38 @@ func (m *Model) updateLibraryStates() {
 		libCol.SetLibraryStates(m.LibraryStates)
 	}
 	m.Inspector.SetLibraryStates(m.LibraryStates)
+}
+
+// applyWatchState updates every cached and currently rendered copy of an item.
+// Keeping the cache in sync is important: otherwise a subsequent cached load
+// can immediately restore the item's old watch status after the server update.
+func (m *Model) applyWatchState(itemID string, played bool) {
+	m.LibraryService.SetWatchState(itemID, played)
+
+	var patched *domain.MediaItem
+	flipped := false
+	for i := 0; i < m.ColumnStack.Len(); i++ {
+		if col := m.ColumnStack.Get(i); col != nil {
+			if item, changed := col.ApplyWatchState(itemID, played); item != nil {
+				patched = item
+				flipped = flipped || changed
+			}
+		}
+	}
+
+	if flipped && patched != nil && patched.ShowID != "" {
+		delta := 1
+		if played {
+			delta = -1
+		}
+		for i := 0; i < m.ColumnStack.Len(); i++ {
+			if col := m.ColumnStack.Get(i); col != nil {
+				col.AdjustUnwatchedCounts(patched.ShowID, patched.ParentID, delta)
+			}
+		}
+	}
+
+	m.updateInspector()
 }
 
 // refreshCurrentView refreshes the current view
