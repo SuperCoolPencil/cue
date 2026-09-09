@@ -172,6 +172,70 @@ func (m *SortModal) HandleKeyMsg(msg tea.KeyMsg) (handled bool, selection *SortS
 	return true, nil // consume all keys when visible
 }
 
+// HandleMouse handles mouse input for the sort modal.
+// Returns (sortModal, handled, selection) where selection is non-nil if confirmed.
+func (m SortModal) HandleMouse(msg tea.MouseMsg, screenW, screenH int) (SortModal, bool, *SortSelection) {
+	if !m.visible || len(m.options) == 0 {
+		return m, false, nil
+	}
+
+	// Approximate modal dimensions: ~25 chars wide
+	modalWidth := 25
+	// Height: 1(title) + len(options) + 1(blank before hint) + 1(hint) + 2(border)
+	modalHeight := 1 + len(m.options) + 1 + 1 + 2
+
+	modalX := (screenW - modalWidth) / 2
+	if modalX < 0 {
+		modalX = 0
+	}
+	modalY := (screenH - modalHeight) / 2
+	if modalY < 0 {
+		modalY = 0
+	}
+
+	insideModal := msg.X >= modalX && msg.X < modalX+modalWidth &&
+		msg.Y >= modalY && msg.Y < modalY+modalHeight
+
+	switch {
+	case msg.Button == tea.MouseButtonWheelUp:
+		if m.cursor > 0 {
+			m.cursor--
+		}
+		return m, true, nil
+
+	case msg.Button == tea.MouseButtonWheelDown:
+		if m.cursor < len(m.options)-1 {
+			m.cursor++
+		}
+		return m, true, nil
+
+	case msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft:
+		if insideModal {
+			// Items start at modalY + 1(border) + 1(title in content) = modalY + 2
+			itemIdx := msg.Y - modalY - 2
+			if itemIdx >= 0 && itemIdx < len(m.options) {
+				chosen := m.options[itemIdx]
+				dir := DefaultDirection(chosen)
+				if chosen == m.activeField {
+					if m.activeDir == SortAsc {
+						dir = SortDesc
+					} else {
+						dir = SortAsc
+					}
+				}
+				m.visible = false
+				return m, true, &SortSelection{Field: chosen, Direction: dir}
+			}
+			return m, true, nil
+		}
+		// Click outside modal — dismiss
+		m.visible = false
+		return m, true, nil
+	}
+
+	return m, false, nil
+}
+
 // View renders the sort modal
 func (m SortModal) View() string {
 	if !m.visible || len(m.options) == 0 {

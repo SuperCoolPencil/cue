@@ -163,6 +163,101 @@ func (o GlobalSearch) Update(msg tea.Msg) (GlobalSearch, tea.Cmd, bool) {
 	return o, cmd, false
 }
 
+// HandleMouse handles mouse input for the global search modal.
+// screenW, screenH are the terminal dimensions.
+// Returns (globalSearch, handled, resultClicked) where:
+//
+//	handled = true if the mouse event was consumed (search remains open)
+//	resultClicked = true if the click landed on a result row (for double-click gating)
+func (o GlobalSearch) HandleMouse(msg tea.MouseMsg, screenW, screenH int) (GlobalSearch, bool, bool) {
+	if !o.visible {
+		return o, false, false
+	}
+
+	// modal dimensions (same as View())
+	modalWidth := o.width * 2 / 3
+	if modalWidth < 40 {
+		modalWidth = 40
+	}
+	if modalWidth > 80 {
+		modalWidth = 80
+	}
+
+	// Approximate content height: title(1) + blank(1) + input(1) + blank(1) + results
+	maxResults := 10
+	resultCount := o.ResultCount()
+	displayCount := resultCount - o.offset
+	if displayCount > maxResults {
+		displayCount = maxResults
+	}
+	if displayCount < 0 {
+		displayCount = 0
+	}
+
+	contentHeight := 4 + displayCount // title+blank+input+blank+results
+	if remaining := resultCount - (o.offset + displayCount); remaining > 0 {
+		contentHeight++ // "and X more" line
+	}
+	// ModalStyle has Border(RoundedBorder) + Padding(1,2) = 4 vertical frame
+	modalHeight := contentHeight + 4
+	if modalHeight > screenH {
+		modalHeight = screenH
+	}
+
+	modalX := (screenW - modalWidth) / 2
+	if modalX < 0 {
+		modalX = 0
+	}
+	modalY := (screenH - modalHeight) / 2
+	if modalY < 0 {
+		modalY = 0
+	}
+
+	// Check if click is inside the modal rect
+	insideModal := msg.X >= modalX && msg.X < modalX+modalWidth &&
+		msg.Y >= modalY && msg.Y < modalY+modalHeight
+
+	switch {
+	case msg.Button == tea.MouseButtonWheelUp:
+		if o.cursor > 0 {
+			o.cursor--
+			o.ensureVisible(10)
+		}
+		return o, true, false
+
+	case msg.Button == tea.MouseButtonWheelDown:
+		if o.cursor < resultCount-1 {
+			o.cursor++
+			o.ensureVisible(10)
+		}
+		return o, true, false
+
+	case msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft:
+		if insideModal {
+			// Results start after border(1)+padding(1)+title(1)+blank(1)+input(1)+blank(1)
+			// = modalY + 6
+			firstResultLine := modalY + 6
+			resultIdx := msg.Y - firstResultLine
+			if resultIdx >= 0 && resultIdx < displayCount {
+				o.cursor = o.offset + resultIdx
+				return o, true, true // result row clicked — app gates double-click on this
+			}
+			// Let other areas (input field) pass through, but mark as handled
+			// so the outside-click dismiss doesn't trigger
+			return o, true, false
+		}
+		// Click outside modal — dismiss
+		o.Hide()
+		return o, true, false
+
+	case msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonRight:
+		o.Hide()
+		return o, true, false
+	}
+
+	return o, false, false
+}
+
 func (o *GlobalSearch) ensureVisible(maxVisible int) {
 	if o.cursor < o.offset {
 		o.offset = o.cursor
