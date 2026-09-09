@@ -6,45 +6,62 @@
 
 ## Features
 
--  **Lightning Fast Browsing**: Instant, keyboard-driven navigation across massive media libraries.
--  **Unified TV Show View**: Explore seasons and episodes in a single, collapsible tree view.
--  **Native Binge-Watching**: Seamless, gapless playback for TV shows using native mpv playlists.
--  **Bulk Scrobbling**: Automatically marks previous episodes as watched when skipping ahead or finishing a season.
--  **Smart Filtering**: Hide watched movies, shows, and seasons with a single setting for a cleaner library view.
--  **Smart Scrobbling**: Real-time playback progress and watch status sync with Plex & Jellyfin via mpv IPC.
--  **Deep Metadata**: View rich details, media info, and progress bars in a dedicated inspector.
--  **Artwork Preview**: See the selected movie or show's poster in a dedicated preview pane, with native Kitty graphics and an ASCII fallback.
--  **Global Fuzzy Search**: Instantly find any movie or show with just a few keystrokes.
--  **Vim-Style Navigation**: Efficient, keyboard-first interface using familiar `h/j/k/l` bindings.
--  **Live Status Display**: Persistent 'Now Playing' and scrobble status in the footer.
--  **Playlist & Queue**: Manage your watch queue and playlists directly from the terminal.
--  **High-Performance Caching**: Snappy, progressive loading for a smooth browsing experience.
+- **Fast browsing:** Navigate large media libraries with a keyboard-first interface.
+- **Unified TV view:** Explore seasons and episodes in one collapsible tree.
+- **Playback tracking:** Sync progress and watched status with Plex and Jellyfin through mpv IPC.
+- **Binge watching:** Play full seasons as gapless native mpv playlists.
+- **Search and filtering:** Find titles globally, filter the current view, or hide watched media.
+- **Artwork and metadata:** View posters, media details, and progress in the inspector.
+- **Playlists and queue:** Build playlists and manage what to watch next.
+- **Plex server discovery:** Find and switch servers without entering their addresses manually.
+- **Local caching:** Browse and search a responsive local library cache.
 
 ## Quick Start
 
-### Installation
-
-**Download** from [Releases](https://github.com/SuperCoolPencil/cue/releases) or install with Go:
+Download a binary from [Releases](https://github.com/SuperCoolPencil/cue/releases), or install Cue with Go:
 
 ```bash
 go install github.com/SuperCoolPencil/cue@latest
 ```
 
-### First Run
-
-Launch Cue and follow the interactive setup:
+Launch Cue:
 
 ```bash
 cue
 ```
 
-You'll be prompted to enter your server URL. Cue automatically detects whether it's a Plex or Jellyfin server and guides you through the appropriate authentication.
+Cue asks for your server URL, detects Plex or Jellyfin, and guides you through authentication.
 
 ## Usage
 
+### Switch Plex Servers
+
+After configuring Cue with Plex, list the servers available to your account:
+
+```bash
+cue discover
+```
+
+In the picker:
+
+| Key | Action |
+|-----|--------|
+| `↑` / `↓`, `j` / `k` | Move between connections |
+| `g` / `G` | Jump to the first / last connection |
+| `Enter` | Switch to the selected connection |
+| `q` / `Esc` | Cancel |
+
+For non-interactive use, select a server by its 1-based position in the discovery list:
+
+```bash
+cue discover --select 2
+```
+
+Discovery is Plex-only. Jellyfin continues to use the URL configured during setup.
+
 ### Artwork Preview
 
-Cue displays artwork with the Kitty graphics protocol when running directly in Kitty. Other terminals—and Kitty sessions inside tmux, Zellij, or GNU screen—automatically use the ASCII fallback.
+Cue uses the Kitty graphics protocol when running directly in Kitty. Other terminals—and Kitty sessions inside tmux, Zellij, or GNU screen—use the ASCII fallback automatically.
 
 ### Keyboard Shortcuts
 
@@ -52,7 +69,7 @@ Cue displays artwork with the Kitty graphics protocol when running directly in K
 |-----|--------|
 | `↑` `↓` `j` `k` | Navigate up/down |
 | `←` `→` `h` `l` | Navigate left/right (columns) |
-| `Enter` | Play/Resume item |
+| `Enter` | Play or resume an item |
 | `p` | Play from start |
 | `Shift+Enter` | Play the next unplayed episode of a selected show |
 | `w` / `u` | Mark watched / unwatched |
@@ -65,7 +82,7 @@ Cue displays artwork with the Kitty graphics protocol when running directly in K
 | `N` | Play next unwatched episode |
 | `s` | Sort options |
 | `i` | Toggle inspector panel |
-| `r` / `R` | Refresh library / all |
+| `r` / `R` | Refresh the current library / all libraries |
 | `g` / `G` | Jump to top / bottom |
 | `Ctrl+u` / `d` | Page up / half-page down |
 | `Autoplay` | Toggle automatic next episode in Config menu |
@@ -73,31 +90,35 @@ Cue displays artwork with the Kitty graphics protocol when running directly in K
 | `Hide watched` | Toggle visibility of watched items in Config menu |
 | `L` | Logout |
 | `?` | Show help |
-| `q` | Quit/Back |
+| `q` | Quit or go back |
+
+### Playback
+
+Cue supports mpv, VLC, IINA, PotPlayer, and other system players. mpv is recommended because native playlists, resume tracking, and real-time scrobbling depend on its IPC support.
+
+When playing a TV show with mpv, Cue sends the season as a native playlist. This enables:
+
+- Gapless transitions between episodes.
+- Starting at the selected episode or saved position.
+- Updating progress throughout the playlist session.
+- Marking preceding episodes as watched when you skip ahead.
+- Marking an episode watched after it reaches the 90% threshold.
+
+On WSL, Cue detects Windows players from both `PATH` and Windows App Paths. Native Windows builds use the same detection.
+
+If no supported player is found, Cue tries to open the raw media URL with the system's default handler. Resume is unavailable in this mode, and some MKV files or audio codecs may not work correctly.
 
 ## Configuration
 
-Config file: `~/.config/cue/config.yaml` (created on first run).
+Cue creates its configuration file on first run:
 
-### Binge Watching & Native Playlists
-Cue handles TV show playback by sending the entire season to mpv as a native playlist. This provides several benefits:
-- **Gapless Transitions**: mpv handles the transition between episodes internally, ensuring zero delay.
-- **Smart Start**: Playback always starts at your selected episode (or saved position) while keeping the rest of the season accessible in the player's playlist.
-- **Bulk Progress Sync**: 
-    - When you transition to a new episode, Cue automatically marks all *preceding* episodes in the playlist as watched on your server.
-    - Reaching the 90% threshold on an episode automatically marks it and all previous unwatched episodes as played.
-- **IPC Integration**: Real-time progress monitoring continues across the entire playlist session.
-
-Other players (VLC, IINA, etc.) are supported for basic playback, but the native playlist and real-time scrobbling features require `mpv`.
-
+```text
+~/.config/cue/config.yaml
+```
 
 ## Attribution
 
 Cue is forked from [Kino](https://github.com/mmcdole/kino), originally created by Matthew McDole. The original MIT license notice is preserved in `LICENSE`.
-
-On WSL, Cue detects Windows-side players (PotPlayer, mpv.exe, VLC) from both `PATH` and Windows App Paths, so normal GUI installations work without extra configuration. Native Windows builds use the same detection.
-
-If no media player is available, Cue opens the raw media URL with the platform's default URL handler. This is a best-effort browser fallback: resume is unavailable and some MKV/audio-codec combinations may play without audio. Installing mpv, VLC, or PotPlayer is recommended for reliable playback.
 
 ## License
 

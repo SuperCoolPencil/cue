@@ -16,14 +16,15 @@ func TestEnvVarOverrides(t *testing.T) {
 	t.Setenv("HOME", home)
 	t.Setenv("APPDATA", home)
 	t.Setenv("CUE_SERVER_TOKEN", "env-token")
+	t.Setenv("CUE_SERVER_PLEX_ACCOUNT_TOKEN", "account-token")
 	t.Setenv("CUE_UI_AUTOPLAY", "false")
 
 	cfg, err := LoadConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Server.Token != "env-token" || cfg.UI.Autoplay {
-		t.Fatalf("nested environment overrides not applied: token=%q autoplay=%v", cfg.Server.Token, cfg.UI.Autoplay)
+	if cfg.Server.Token != "env-token" || cfg.Server.PlexAccountToken != "account-token" || cfg.UI.Autoplay {
+		t.Fatalf("nested environment overrides not applied: token=%q account_token=%q autoplay=%v", cfg.Server.Token, cfg.Server.PlexAccountToken, cfg.UI.Autoplay)
 	}
 }
 
@@ -45,6 +46,7 @@ func TestSaveAndClearUseLoadedConfigFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfg.Server.Token = "new-token"
+	cfg.Server.PlexAccountToken = "account-token"
 	if err := SaveConfig(cfg); err != nil {
 		t.Fatal(err)
 	}
@@ -52,12 +54,18 @@ func TestSaveAndClearUseLoadedConfigFile(t *testing.T) {
 	if !strings.Contains(string(data), "new-token") {
 		t.Fatalf("loaded config was not updated: %s", data)
 	}
+	if !strings.Contains(string(data), "account-token") {
+		t.Fatalf("Plex account token was not persisted: %s", data)
+	}
 	if err := ClearServerConfig(); err != nil {
 		t.Fatal(err)
 	}
 	data, _ = os.ReadFile(localConfig)
 	if strings.Contains(string(data), "new-token") {
 		t.Fatalf("credentials remained in loaded config: %s", data)
+	}
+	if strings.Contains(string(data), "account-token") {
+		t.Fatalf("Plex account token remained in loaded config: %s", data)
 	}
 }
 

@@ -32,12 +32,13 @@ type Config struct {
 
 // ServerConfig holds media server configuration
 type ServerConfig struct {
-	Type     SourceType `mapstructure:"type"     yaml:"type"`       // "plex" or "jellyfin"
-	URL      string     `mapstructure:"url"      yaml:"url"`        // Server URL
-	Token    string     `mapstructure:"token"    yaml:"token"`      // Plex token OR Jellyfin API key
-	UserID   string     `mapstructure:"user_id"  yaml:"user_id"`    // Jellyfin only
-	Username string     `mapstructure:"username" yaml:"username"`   // Jellyfin only (display)
-	DeviceID string     `mapstructure:"device_id" yaml:"device_id"` // Unique per-install device identifier
+	Type             SourceType `mapstructure:"type"               yaml:"type"`               // "plex" or "jellyfin"
+	URL              string     `mapstructure:"url"                yaml:"url"`                // Server URL
+	Token            string     `mapstructure:"token"              yaml:"token"`              // Plex server token OR Jellyfin API key
+	PlexAccountToken string     `mapstructure:"plex_account_token" yaml:"plex_account_token"` // Plex account token used for discovery
+	UserID           string     `mapstructure:"user_id"            yaml:"user_id"`            // Jellyfin only
+	Username         string     `mapstructure:"username"           yaml:"username"`           // Jellyfin only (display)
+	DeviceID         string     `mapstructure:"device_id"          yaml:"device_id"`          // Unique per-install device identifier
 }
 
 // PlayerConfig holds media player configuration
@@ -121,7 +122,7 @@ func LoadConfig() (*Config, error) {
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
 	for _, key := range []string{
-		"server.type", "server.url", "server.token", "server.user_id",
+		"server.type", "server.url", "server.token", "server.plex_account_token", "server.user_id",
 		"server.username", "server.device_id",
 		"player.command", "player.args", "player.start_flag",
 		"ui.show_watch_status", "ui.show_library_counts", "ui.hide_watched", "ui.autoplay",
@@ -194,6 +195,7 @@ func SaveConfig(cfg *Config) error {
 	viper.Set("server.type", cfg.Server.Type)
 	viper.Set("server.url", cfg.Server.URL)
 	viper.Set("server.token", cfg.Server.Token)
+	viper.Set("server.plex_account_token", cfg.Server.PlexAccountToken)
 	viper.Set("server.user_id", cfg.Server.UserID)
 	viper.Set("server.username", cfg.Server.Username)
 	viper.Set("server.device_id", cfg.Server.DeviceID)
@@ -281,6 +283,7 @@ func ClearServerConfig() error {
 	viper.Set("server.type", "")
 	viper.Set("server.url", "")
 	viper.Set("server.token", "")
+	viper.Set("server.plex_account_token", "")
 	viper.Set("server.user_id", "")
 	viper.Set("server.username", "")
 
