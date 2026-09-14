@@ -529,9 +529,24 @@ func DirectPlayShowCmd(svc mediaserver.MediaSource, playerSvc *player.Service, s
 			return ErrMsg{Err: domain.ErrItemNotFound, Context: "finding next episode to play"}
 		}
 
-		// Return a command that plays the found episode
-		return PlayItemCmd(playerSvc, *episode, episode.ShouldResume(), autoplay)()
+		// Build the full playlist so the player can autoplay subsequent episodes,
+		// matching the behaviour of starting playback from the episode menu.
+		playlist := buildEpisodePlaylist(episodes)
+		return PlayItemCmd(playerSvc, *episode, episode.ShouldResume(), autoplay, playlist...)()
 	}
+}
+
+// buildEpisodePlaylist converts a slice of episode pointers to a flat slice of
+// domain.MediaItem values suitable for passing as a playlist to PlayItemCmd.
+// Nil pointers are silently skipped.
+func buildEpisodePlaylist(episodes []*domain.MediaItem) []domain.MediaItem {
+	playlist := make([]domain.MediaItem, 0, len(episodes))
+	for _, ep := range episodes {
+		if ep != nil {
+			playlist = append(playlist, *ep)
+		}
+	}
+	return playlist
 }
 
 // LoadPlaylistModalDataCmd loads data for the playlist management modal
