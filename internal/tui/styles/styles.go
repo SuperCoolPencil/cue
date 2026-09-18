@@ -99,6 +99,34 @@ var themeGruvbox = Theme{
 	Info:      lipgloss.Color("#458588"),
 }
 
+var themeSurge = Theme{
+	Name:      "surge",
+	Accent:    lipgloss.Color("#FF79C6"), // hot-pink
+	AccentAlt: lipgloss.Color("#BD93F9"), // purple
+	BgDark:    lipgloss.Color("#282A36"),
+	BgMid:     lipgloss.Color("#44475A"),
+	FgBright:  lipgloss.Color("#F8F8F2"),
+	FgMid:     lipgloss.Color("#A9B1D6"),
+	FgDim:     lipgloss.Color("#6272A4"),
+	Success:   lipgloss.Color("#50FA7B"),
+	Error:     lipgloss.Color("#FF5555"),
+	Info:      lipgloss.Color("#58A6FF"),
+}
+
+var themeSurgeLight = Theme{
+	Name:      "surge-light",
+	Accent:    lipgloss.Color("#D10074"),
+	AccentAlt: lipgloss.Color("#7B1FA2"),
+	BgDark:    lipgloss.Color("#FFFFFF"),
+	BgMid:     lipgloss.Color("#C6C6C6"),
+	FgBright:  lipgloss.Color("#1A1A1A"),
+	FgMid:     lipgloss.Color("#4A4A4A"),
+	FgDim:     lipgloss.Color("#757575"),
+	Success:   lipgloss.Color("#2E7D32"),
+	Error:     lipgloss.Color("#D32F2F"),
+	Info:      lipgloss.Color("#005CC5"),
+}
+
 // allThemes is the ordered list of built-in presets.
 var allThemes = []Theme{
 	themePlex,
@@ -106,13 +134,15 @@ var allThemes = []Theme{
 	themeNord,
 	themeCatppuccin,
 	themeGruvbox,
+	themeSurge,
+	themeSurgeLight,
 }
 
 // ---------------------------------------------------------------------------
 // Active-theme API
 // ---------------------------------------------------------------------------
 
-var active = themePlex
+var active = themeSurge
 
 // SetTheme switches the active theme by name. Returns false if unknown.
 func SetTheme(name string) bool {
