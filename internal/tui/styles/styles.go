@@ -127,7 +127,7 @@ var allThemes = []Theme{
 // Active-theme API
 // ---------------------------------------------------------------------------
 
-var active = themeSurge
+var active = themePlex
 
 // SetTheme switches the active theme by name. Returns false if unknown.
 func SetTheme(name string) bool {

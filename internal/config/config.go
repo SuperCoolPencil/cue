@@ -75,7 +75,7 @@ func DefaultConfig() *Config {
 			HideWatched:       false,
 			Autoplay:          true,
 			PlayNextOnSelect:  true,
-			Theme:             "surge",
+			Theme:             "plex",
 		},
 		Logging: LoggingConfig{
 			File:  defaultLogPath(),
