@@ -1182,7 +1182,7 @@ func (c *ListColumn) renderMovieItem(item domain.MediaItem, selected bool, width
 	}
 
 	title := item.Title
-	if item.Year > 0 {
+	if item.Year > 0 && !strings.HasSuffix(item.Title, fmt.Sprintf("(%d)", item.Year)) {
 		title = fmt.Sprintf("%s (%d)", item.Title, item.Year)
 	}
 
@@ -1215,7 +1215,7 @@ func (c *ListColumn) renderShowItem(show domain.Show, selected bool, width int) 
 	}
 
 	title := show.Title
-	if show.Year > 0 {
+	if show.Year > 0 && !strings.HasSuffix(show.Title, fmt.Sprintf("(%d)", show.Year)) {
 		title = fmt.Sprintf("%s (%d)", show.Title, show.Year)
 	}
 
@@ -1443,7 +1443,7 @@ func (c *ListColumn) renderPlaylistMediaItem(item domain.MediaItem, selected boo
 	if item.Type == domain.MediaTypeEpisode && item.ShowTitle != "" {
 		// Show episode with show context: "Show - S01E05 Title"
 		title = fmt.Sprintf("%s - %s %s", item.ShowTitle, item.EpisodeCode(), item.Title)
-	} else if item.Year > 0 {
+	} else if item.Year > 0 && !strings.HasSuffix(item.Title, fmt.Sprintf("(%d)", item.Year)) {
 		title = fmt.Sprintf("%s (%d)", item.Title, item.Year)
 	}
 
@@ -1477,7 +1477,7 @@ func (c *ListColumn) renderMixedItem(item domain.ListItem, selected bool, width 
 	title := item.GetTitle()
 	if mediaItem, ok := item.(*domain.MediaItem); ok && c.showShowTitle && mediaItem.Type == domain.MediaTypeEpisode && mediaItem.ShowTitle != "" {
 		return c.renderEpisodeItem(*mediaItem, selected, width)
-	} else if year := item.GetYear(); year > 0 {
+	} else if year := item.GetYear(); year > 0 && !strings.HasSuffix(title, fmt.Sprintf("(%d)", year)) {
 		title = fmt.Sprintf("%s (%d)", title, year)
 	}
 
