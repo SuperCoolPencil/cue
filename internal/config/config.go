@@ -50,11 +50,12 @@ type PlayerConfig struct {
 
 // UIConfig holds UI configuration
 type UIConfig struct {
-	ShowWatchStatus   bool `mapstructure:"show_watch_status"`   // Show watched/unwatched/in-progress indicators
-	ShowLibraryCounts bool `mapstructure:"show_library_counts"` // Keep library item counts visible after sync
-	HideWatched       bool `mapstructure:"hide_watched"`        // Hide items that are already watched
-	Autoplay          bool `mapstructure:"autoplay"`            // Automatically play the next episode
-	PlayNextOnSelect  bool `mapstructure:"play_next_on_select"` // Play the next episode when selecting a show
+	ShowWatchStatus   bool   `mapstructure:"show_watch_status"`   // Show watched/unwatched/in-progress indicators
+	ShowLibraryCounts bool   `mapstructure:"show_library_counts"` // Keep library item counts visible after sync
+	HideWatched       bool   `mapstructure:"hide_watched"`        // Hide items that are already watched
+	Autoplay          bool   `mapstructure:"autoplay"`            // Automatically play the next episode
+	PlayNextOnSelect  bool   `mapstructure:"play_next_on_select"` // Play the next episode when selecting a show
+	Theme             string `mapstructure:"theme"`               // Active colour theme name
 }
 
 // LoggingConfig holds logging configuration
@@ -74,6 +75,7 @@ func DefaultConfig() *Config {
 			HideWatched:       false,
 			Autoplay:          true,
 			PlayNextOnSelect:  true,
+			Theme:             "plex",
 		},
 		Logging: LoggingConfig{
 			File:  defaultLogPath(),
@@ -126,6 +128,7 @@ func LoadConfig() (*Config, error) {
 		"server.username", "server.device_id",
 		"player.command", "player.args", "player.start_flag",
 		"ui.show_watch_status", "ui.show_library_counts", "ui.hide_watched", "ui.autoplay", "ui.play_next_on_select",
+		"ui.theme",
 		"logging.file", "logging.level", "current_profile",
 	} {
 		_ = viper.BindEnv(key)
@@ -211,6 +214,7 @@ func SaveConfig(cfg *Config) error {
 	viper.Set("ui.hide_watched", cfg.UI.HideWatched)
 	viper.Set("ui.autoplay", cfg.UI.Autoplay)
 	viper.Set("ui.play_next_on_select", cfg.UI.PlayNextOnSelect)
+	viper.Set("ui.theme", cfg.UI.Theme)
 
 	// Set logging fields
 	viper.Set("logging.file", cfg.Logging.File)

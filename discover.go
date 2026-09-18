@@ -13,7 +13,6 @@ import (
 
 	"github.com/SuperCoolPencil/cue/internal/config"
 	"github.com/SuperCoolPencil/cue/internal/mediaserver"
-	"github.com/SuperCoolPencil/cue/internal/tui/styles"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -22,14 +21,14 @@ import (
 
 var plexctlTitleStyle = lipgloss.NewStyle().
 	Bold(true).
-	Foreground(styles.Green).
+	Foreground(lipgloss.Color("#10B981")).
 	MarginBottom(1)
 
 var plexctlItemStyle = lipgloss.NewStyle().PaddingLeft(4)
 
 var plexctlSelectedItemStyle = lipgloss.NewStyle().
 	PaddingLeft(2).
-	Foreground(styles.Green)
+	Foreground(lipgloss.Color("#10B981"))
 
 // runDiscover implements `cue discover`: it lists the Plex servers reachable by
 // the configured account and switches the active server to the one selected.

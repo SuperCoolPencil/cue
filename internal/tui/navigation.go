@@ -9,6 +9,7 @@ import (
 	"github.com/SuperCoolPencil/cue/internal/domain"
 	"github.com/SuperCoolPencil/cue/internal/search"
 	"github.com/SuperCoolPencil/cue/internal/tui/components"
+	"github.com/SuperCoolPencil/cue/internal/tui/styles"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -387,6 +388,23 @@ func (m *Model) drillVirtualLibrary(v domain.Library, cursor int) *drillResult {
 		items = m.configEntries()
 	case cacheLibraryID:
 		items = m.cacheEntries()
+	case "__config_theme__":
+		next := styles.NextThemeName(m.UIConfig.Theme)
+		styles.SetTheme(next)
+		m.UIConfig.Theme = next
+		if m.AppConfig != nil {
+			m.AppConfig.UI.Theme = next
+			if err := config.SaveConfig(m.AppConfig); err != nil {
+				m.StatusMsg = fmt.Sprintf("Failed to save config: %v", err)
+				m.StatusIsErr = true
+				return &drillResult{AwaitKind: AwaitNone}
+			}
+		}
+		if top := m.ColumnStack.Top(); top != nil {
+			top.SetItems(m.configEntries())
+		}
+		m.StatusMsg = "Theme: " + next
+		return &drillResult{AwaitKind: AwaitNone}
 	case "__config_watch__":
 		m.UIConfig.ShowWatchStatus = !m.UIConfig.ShowWatchStatus
 		if m.AppConfig != nil {

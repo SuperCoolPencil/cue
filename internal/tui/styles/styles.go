@@ -6,59 +6,212 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Color palette
-var (
-	PlexOrange = lipgloss.Color("#E5A00D")
-	SlateDark  = lipgloss.Color("#1F2937")
-	SlateLight = lipgloss.Color("#374151")
-	DimGray    = lipgloss.Color("#6B7280")
-	LightGray  = lipgloss.Color("#9CA3AF")
-	White      = lipgloss.Color("#F9FAFB")
-	Green      = lipgloss.Color("#10B981")
-	Red        = lipgloss.Color("#EF4444")
-	Blue       = lipgloss.Color("#3B82F6")
-)
+// ---------------------------------------------------------------------------
+// Theme definition
+// ---------------------------------------------------------------------------
+
+// Theme holds all semantic color tokens for a colour scheme.
+type Theme struct {
+	Name      string
+	Accent    lipgloss.Color // primary highlight: borders, focused items, spinner
+	AccentAlt lipgloss.Color // secondary accent: in-progress watch dot
+	BgDark    lipgloss.Color // deepest background (modal bg)
+	BgMid     lipgloss.Color // selected-item background
+	FgBright  lipgloss.Color // primary text
+	FgMid     lipgloss.Color // secondary / normal text
+	FgDim     lipgloss.Color // dim / help text
+	Success   lipgloss.Color // watched check, success messages
+	Error     lipgloss.Color // error messages
+	Info      lipgloss.Color // informational blue tones
+}
+
+// ---------------------------------------------------------------------------
+// Built-in presets
+// ---------------------------------------------------------------------------
+
+var themePlex = Theme{
+	Name:      "plex",
+	Accent:    lipgloss.Color("#E5A00D"),
+	AccentAlt: lipgloss.Color("#E5A00D"),
+	BgDark:    lipgloss.Color("#1F2937"),
+	BgMid:     lipgloss.Color("#374151"),
+	FgBright:  lipgloss.Color("#F9FAFB"),
+	FgMid:     lipgloss.Color("#9CA3AF"),
+	FgDim:     lipgloss.Color("#6B7280"),
+	Success:   lipgloss.Color("#10B981"),
+	Error:     lipgloss.Color("#EF4444"),
+	Info:      lipgloss.Color("#3B82F6"),
+}
+
+var themeDracula = Theme{
+	Name:      "dracula",
+	Accent:    lipgloss.Color("#BD93F9"),
+	AccentAlt: lipgloss.Color("#FF79C6"),
+	BgDark:    lipgloss.Color("#282A36"),
+	BgMid:     lipgloss.Color("#44475A"),
+	FgBright:  lipgloss.Color("#F8F8F2"),
+	FgMid:     lipgloss.Color("#BFBFBF"),
+	FgDim:     lipgloss.Color("#6272A4"),
+	Success:   lipgloss.Color("#50FA7B"),
+	Error:     lipgloss.Color("#FF5555"),
+	Info:      lipgloss.Color("#8BE9FD"),
+}
+
+var themeNord = Theme{
+	Name:      "nord",
+	Accent:    lipgloss.Color("#88C0D0"),
+	AccentAlt: lipgloss.Color("#81A1C1"),
+	BgDark:    lipgloss.Color("#2E3440"),
+	BgMid:     lipgloss.Color("#3B4252"),
+	FgBright:  lipgloss.Color("#ECEFF4"),
+	FgMid:     lipgloss.Color("#D8DEE9"),
+	FgDim:     lipgloss.Color("#4C566A"),
+	Success:   lipgloss.Color("#A3BE8C"),
+	Error:     lipgloss.Color("#BF616A"),
+	Info:      lipgloss.Color("#5E81AC"),
+}
+
+var themeCatppuccin = Theme{
+	Name:      "catppuccin",
+	Accent:    lipgloss.Color("#CBA6F7"),
+	AccentAlt: lipgloss.Color("#F5C2E7"),
+	BgDark:    lipgloss.Color("#1E1E2E"),
+	BgMid:     lipgloss.Color("#313244"),
+	FgBright:  lipgloss.Color("#CDD6F4"),
+	FgMid:     lipgloss.Color("#BAC2DE"),
+	FgDim:     lipgloss.Color("#6C7086"),
+	Success:   lipgloss.Color("#A6E3A1"),
+	Error:     lipgloss.Color("#F38BA8"),
+	Info:      lipgloss.Color("#89DCEB"),
+}
+
+var themeGruvbox = Theme{
+	Name:      "gruvbox",
+	Accent:    lipgloss.Color("#D79921"),
+	AccentAlt: lipgloss.Color("#D65D0E"),
+	BgDark:    lipgloss.Color("#282828"),
+	BgMid:     lipgloss.Color("#3C3836"),
+	FgBright:  lipgloss.Color("#EBDBB2"),
+	FgMid:     lipgloss.Color("#D5C4A1"),
+	FgDim:     lipgloss.Color("#928374"),
+	Success:   lipgloss.Color("#B8BB26"),
+	Error:     lipgloss.Color("#CC241D"),
+	Info:      lipgloss.Color("#458588"),
+}
+
+// allThemes is the ordered list of built-in presets.
+var allThemes = []Theme{
+	themePlex,
+	themeDracula,
+	themeNord,
+	themeCatppuccin,
+	themeGruvbox,
+}
+
+// ---------------------------------------------------------------------------
+// Active-theme API
+// ---------------------------------------------------------------------------
+
+var active = themePlex
+
+// SetTheme switches the active theme by name. Returns false if unknown.
+func SetTheme(name string) bool {
+	for _, t := range allThemes {
+		if t.Name == name {
+			active = t
+			return true
+		}
+	}
+	return false
+}
+
+// ActiveTheme returns the currently active theme.
+func ActiveTheme() Theme {
+	return active
+}
+
+// ThemeNames returns all built-in theme names in display order.
+func ThemeNames() []string {
+	names := make([]string, len(allThemes))
+	for i, t := range allThemes {
+		names[i] = t.Name
+	}
+	return names
+}
+
+// NextThemeName returns the name that follows the given theme name (wraps around).
+func NextThemeName(current string) string {
+	names := ThemeNames()
+	for i, n := range names {
+		if n == current {
+			return names[(i+1)%len(names)]
+		}
+	}
+	return names[0]
+}
+
+// ---------------------------------------------------------------------------
+// Style constructors (read active theme at call time)
+// ---------------------------------------------------------------------------
 
 // Borders
-var (
-	ActiveBorder = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(PlexOrange)
 
-	InactiveBorder = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(DimGray)
+func ActiveBorder() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(active.Accent)
+}
 
-	NoBorder = lipgloss.NewStyle().
-			Border(lipgloss.HiddenBorder())
-)
+func InactiveBorder() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(active.FgDim)
+}
+
+func NoBorder() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Border(lipgloss.HiddenBorder())
+}
 
 // Text styles
-var (
-	TitleStyle = lipgloss.NewStyle().
-			Foreground(White).
-			Bold(true)
 
-	SubtitleStyle = lipgloss.NewStyle().
-			Foreground(LightGray)
+func TitleStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(active.FgBright).
+		Bold(true)
+}
 
-	DimStyle = lipgloss.NewStyle().
-			Foreground(DimGray)
+func SubtitleStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(active.FgMid)
+}
 
-	AccentStyle = lipgloss.NewStyle().
-			Foreground(PlexOrange)
+func DimStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(active.FgDim)
+}
 
-	ErrorStyle = lipgloss.NewStyle().
-			Foreground(Red)
+func AccentStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(active.Accent)
+}
 
-	SuccessStyle = lipgloss.NewStyle().
-			Foreground(Green)
+func ErrorStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(active.Error)
+}
 
-	HighlightStyle = lipgloss.NewStyle().
-			Foreground(White).
-			Background(PlexOrange).
-			Padding(0, 1)
-)
+func SuccessStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(active.Success)
+}
+
+func HighlightStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(active.FgBright).
+		Background(active.Accent).
+		Padding(0, 1)
+}
 
 // Raw watch status characters (unstyled)
 const (
@@ -68,113 +221,139 @@ const (
 )
 
 // Watch status indicator styles
-var (
-	UnplayedStyle   = lipgloss.NewStyle().Foreground(PlexOrange)
-	InProgressStyle = lipgloss.NewStyle().Foreground(PlexOrange)
-	PlayedStyle     = lipgloss.NewStyle().Foreground(Green)
-)
 
-// Pre-rendered watch status indicators (for non-selection contexts)
-var (
-	UnplayedDot   = UnplayedStyle.Render(UnplayedChar)
-	InProgressDot = InProgressStyle.Render(InProgressChar)
-	PlayedCheck   = PlayedStyle.Render(PlayedChar)
-)
+func UnplayedStyle() lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(active.Accent)
+}
+
+func InProgressStyle() lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(active.AccentAlt)
+}
+
+func PlayedStyle() lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(active.Success)
+}
+
+// Pre-rendered watch status indicators
+
+func UnplayedDot() string   { return UnplayedStyle().Render(UnplayedChar) }
+func InProgressDot() string { return InProgressStyle().Render(InProgressChar) }
+func PlayedCheck() string   { return PlayedStyle().Render(PlayedChar) }
 
 // List item styles
-var (
-	SelectedItemStyle = lipgloss.NewStyle().
-				Foreground(White).
-				Background(SlateLight).
-				Padding(0, 1)
 
-	NormalItemStyle = lipgloss.NewStyle().
-			Foreground(LightGray).
-			Padding(0, 1)
+func SelectedItemStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(active.FgBright).
+		Background(active.BgMid).
+		Padding(0, 1)
+}
 
-	FocusedItemStyle = lipgloss.NewStyle().
-				Foreground(PlexOrange).
-				Bold(true).
-				Padding(0, 1)
-)
+func NormalItemStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(active.FgMid).
+		Padding(0, 1)
+}
+
+func FocusedItemStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(active.Accent).
+		Bold(true).
+		Padding(0, 1)
+}
 
 // Modal styles
-var (
-	ModalStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(PlexOrange).
-			Padding(1, 2).
-			Background(SlateDark)
 
-	ModalTitleStyle = lipgloss.NewStyle().
-			Foreground(White).
-			Bold(true).
-			MarginBottom(1)
-)
+func ModalStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(active.Accent).
+		Padding(1, 2).
+		Background(active.BgDark)
+}
+
+func ModalTitleStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(active.FgBright).
+		Bold(true).
+		MarginBottom(1)
+}
 
 // Help styles
-var (
-	HelpKeyStyle = lipgloss.NewStyle().
-			Foreground(PlexOrange)
 
-	HelpDescStyle = lipgloss.NewStyle().
-			Foreground(DimGray)
-)
+func HelpKeyStyle() lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(active.Accent)
+}
+
+func HelpDescStyle() lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(active.FgDim)
+}
 
 // Progress bar styles
-var (
-	ProgressFullStyle = lipgloss.NewStyle().
-				Foreground(PlexOrange)
 
-	ProgressEmptyStyle = lipgloss.NewStyle().
-				Foreground(DimGray)
-)
+func ProgressFullStyle() lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(active.Accent)
+}
+
+func ProgressEmptyStyle() lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(active.FgDim)
+}
 
 // Badge styles
-var (
-	BadgeStyle = lipgloss.NewStyle().
-			Foreground(White).
-			Background(PlexOrange).
-			Padding(0, 1)
 
-	DimBadgeStyle = lipgloss.NewStyle().
-			Foreground(LightGray).
-			Background(SlateLight).
-			Padding(0, 1)
-)
+func BadgeStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(active.FgBright).
+		Background(active.Accent).
+		Padding(0, 1)
+}
+
+func DimBadgeStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(active.FgMid).
+		Background(active.BgMid).
+		Padding(0, 1)
+}
 
 // Spinner style
-var (
-	SpinnerStyle = lipgloss.NewStyle().
-		Foreground(PlexOrange)
-)
+
+func SpinnerStyle() lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(active.Accent)
+}
 
 // SpinnerFrames contains the animation frames for the loading spinner
 var SpinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 
 // Filter styles
-var (
-	FilterStyle = lipgloss.NewStyle().
-			Foreground(PlexOrange)
 
-	FilterPromptStyle = lipgloss.NewStyle().
-				Foreground(PlexOrange).
-				Bold(true)
-)
+func FilterStyle() lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(active.Accent)
+}
+
+func FilterPromptStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(active.Accent).
+		Bold(true)
+}
 
 // Match highlight styles for search results
-var (
-	MatchHighlightStyle = lipgloss.NewStyle().
-				Foreground(PlexOrange).
-				Bold(true)
 
-	MatchHighlightSelectedStyle = lipgloss.NewStyle().
-					Foreground(PlexOrange).
-					Background(SlateLight).
-					Bold(true)
-)
+func MatchHighlightStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(active.Accent).
+		Bold(true)
+}
 
+func MatchHighlightSelectedStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(active.Accent).
+		Background(active.BgMid).
+		Bold(true)
+}
+
+// ---------------------------------------------------------------------------
 // Helper functions
+// ---------------------------------------------------------------------------
 
 // Truncate truncates a string to the given width with ellipsis
 func Truncate(s string, width int) string {
@@ -232,10 +411,10 @@ func RenderProgressBar(percent float64, width int) string {
 
 	bar := ""
 	for i := 0; i < filled; i++ {
-		bar += ProgressFullStyle.Render("━")
+		bar += ProgressFullStyle().Render("━")
 	}
 	for i := filled; i < width; i++ {
-		bar += ProgressEmptyStyle.Render("─")
+		bar += ProgressEmptyStyle().Render("─")
 	}
 
 	return bar
@@ -245,9 +424,9 @@ func RenderProgressBar(percent float64, width int) string {
 // This function styles each part explicitly to avoid ANSI reset code issues.
 // parts is a slice of {text, fgColor} pairs. Use nil for default foreground.
 func RenderListRow(parts []RowPart, selected bool, width int) string {
-	bg := SlateLight
-	defaultFg := LightGray
-	selectedFg := White
+	bg := active.BgMid
+	defaultFg := active.FgMid
+	selectedFg := active.FgBright
 
 	var result string
 	visibleLen := 0

@@ -17,6 +17,7 @@ import (
 	"github.com/SuperCoolPencil/cue/internal/playlist"
 	"github.com/SuperCoolPencil/cue/internal/search"
 	"github.com/SuperCoolPencil/cue/internal/tui/components"
+	"github.com/SuperCoolPencil/cue/internal/tui/styles"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -259,6 +260,12 @@ func NewModel(
 	uiConfig config.UIConfig,
 	version string,
 ) Model {
+	// Restore saved theme before building the model so every component that
+	// reads the active theme during init (e.g. text input styles) gets the
+	// right colours immediately.
+	if uiConfig.Theme != "" {
+		styles.SetTheme(uiConfig.Theme)
+	}
 	return Model{
 		State:           StateBrowsing,
 		Store:           store,

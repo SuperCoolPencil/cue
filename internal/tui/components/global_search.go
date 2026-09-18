@@ -33,9 +33,9 @@ func NewGlobalSearch() GlobalSearch {
 	ti.CharLimit = 100
 	ti.Width = 40
 	ti.Prompt = "/ "
-	ti.PromptStyle = styles.AccentStyle
-	ti.TextStyle = lipgloss.NewStyle().Foreground(styles.White)
-	ti.PlaceholderStyle = styles.DimStyle
+	ti.PromptStyle = styles.AccentStyle()
+	ti.TextStyle = lipgloss.NewStyle().Foreground(styles.ActiveTheme().FgBright)
+	ti.PlaceholderStyle = styles.DimStyle()
 
 	return GlobalSearch{
 		input: ti,
@@ -200,7 +200,7 @@ func (o GlobalSearch) View() string {
 
 	// Results
 	if o.loading {
-		b.WriteString(styles.SpinnerStyle.Render("Searching..."))
+		b.WriteString(styles.SpinnerStyle().Render("Searching..."))
 	} else {
 		o.renderResults(&b, modalWidth, maxResults)
 	}
@@ -210,7 +210,7 @@ func (o GlobalSearch) View() string {
 		Width(modalWidth - 4).
 		Render(b.String())
 
-	modal := styles.ModalStyle.
+	modal := styles.ModalStyle().
 		Width(modalWidth).
 		Render(content)
 
@@ -229,9 +229,9 @@ func (o GlobalSearch) View() string {
 func highlightMatches(text string, matchedIndexes []int, selected bool) string {
 	if len(matchedIndexes) == 0 {
 		if selected {
-			return styles.SelectedItemStyle.Render(text)
+			return styles.SelectedItemStyle().Render(text)
 		}
-		return styles.NormalItemStyle.Render(text)
+		return styles.NormalItemStyle().Render(text)
 	}
 
 	// Create a set of matched indexes for O(1) lookup
@@ -298,7 +298,7 @@ func highlightMatches(text string, matchedIndexes []int, selected bool) string {
 // renderResults renders the search results
 func (o GlobalSearch) renderResults(b *strings.Builder, modalWidth, maxResults int) {
 	if len(o.results) == 0 && o.input.Value() != "" {
-		b.WriteString(styles.DimStyle.Render("No matches found"))
+		b.WriteString(styles.DimStyle().Render("No matches found"))
 		return
 	}
 	if len(o.results) == 0 {
@@ -320,11 +320,11 @@ func (o GlobalSearch) renderResults(b *strings.Builder, modalWidth, maxResults i
 		// Type badge with library context
 		switch result.Type {
 		case domain.MediaTypeMovie:
-			line.WriteString(styles.DimBadgeStyle.Render("MOV"))
+			line.WriteString(styles.DimBadgeStyle().Render("MOV"))
 		case domain.MediaTypeShow:
-			line.WriteString(styles.DimBadgeStyle.Render("SHOW"))
+			line.WriteString(styles.DimBadgeStyle().Render("SHOW"))
 		case domain.MediaTypeEpisode:
-			line.WriteString(styles.DimBadgeStyle.Render("EP"))
+			line.WriteString(styles.DimBadgeStyle().Render("EP"))
 		}
 		line.WriteString(" ")
 
@@ -357,6 +357,6 @@ func (o GlobalSearch) renderResults(b *strings.Builder, modalWidth, maxResults i
 	}
 
 	if remaining := len(o.results) - (o.offset + displayCount); remaining > 0 {
-		b.WriteString(styles.DimStyle.Render(fmt.Sprintf("... and %d more", remaining)))
+		b.WriteString(styles.DimStyle().Render(fmt.Sprintf("... and %d more", remaining)))
 	}
 }

@@ -116,9 +116,9 @@ func (i Inspector) Update(msg tea.Msg) (Inspector, tea.Cmd) {
 
 // View renders the component
 func (i Inspector) View() string {
-	style := styles.InactiveBorder
+	style := styles.InactiveBorder()
 	if i.Focused {
-		style = styles.ActiveBorder
+		style = styles.ActiveBorder()
 	}
 
 	// Border takes 2 chars (1 each side), leave 1 char safety margin
@@ -146,7 +146,7 @@ func (i Inspector) View() string {
 	}
 
 	// Title line (styled, matching other columns)
-	titleLine := styles.AccentStyle.Render(styles.Truncate("Info", textWidth))
+	titleLine := styles.AccentStyle().Render(styles.Truncate("Info", textWidth))
 
 	// Three-zone layout: header is fixed, body scrolls, footer is fixed
 	headerLines := splitLines(content.header)
@@ -190,11 +190,11 @@ func (i Inspector) View() string {
 	// Scroll indicators for body only
 	header := " "
 	if offset > 0 {
-		header = styles.DimStyle.Render("↑ more")
+		header = styles.DimStyle().Render("↑ more")
 	}
 	footer := " "
 	if end < totalBodyLines {
-		footer = styles.DimStyle.Render("↓ more")
+		footer = styles.DimStyle().Render("↓ more")
 	}
 
 	// Assemble: title + header zone + scroll-up indicator + visible body + padding + scroll-down indicator + footer zone
@@ -290,7 +290,7 @@ func (i Inspector) renderInspector(width int) inspectorContent {
 	case *domain.Playlist:
 		content = inspectorContent{body: i.renderPlaylistInspector(*v, width)}
 	default:
-		content = inspectorContent{body: styles.DimStyle.Render("No item selected")}
+		content = inspectorContent{body: styles.DimStyle().Render("No item selected")}
 	}
 
 	return content
@@ -315,12 +315,12 @@ func renderMediaHeader(item domain.MediaItem, width int) string {
 	if item.Type == domain.MediaTypeEpisode {
 		title = fmt.Sprintf("%s - %s", item.EpisodeCode(), item.Title)
 	}
-	b.WriteString(styles.TitleStyle.Render(styles.Truncate(title, width)))
+	b.WriteString(styles.TitleStyle().Render(styles.Truncate(title, width)))
 	b.WriteString("\n")
 
 	// Show title for episodes
 	if item.ShowTitle != "" {
-		b.WriteString(styles.SubtitleStyle.Render(styles.Truncate(item.ShowTitle, width)))
+		b.WriteString(styles.SubtitleStyle().Render(styles.Truncate(item.ShowTitle, width)))
 		b.WriteString("\n")
 	}
 
@@ -335,7 +335,7 @@ func renderMediaHeader(item domain.MediaItem, width int) string {
 	if item.ContentRating != "" {
 		metaParts = append(metaParts, item.ContentRating)
 	}
-	b.WriteString(styles.DimStyle.Render(strings.Join(metaParts, " · ")))
+	b.WriteString(styles.DimStyle().Render(strings.Join(metaParts, " · ")))
 	b.WriteString("\n")
 
 	// Rating
@@ -344,11 +344,11 @@ func renderMediaHeader(item domain.MediaItem, width int) string {
 		var ratingStyle lipgloss.Style
 		switch {
 		case item.Rating >= 7:
-			ratingStyle = lipgloss.NewStyle().Foreground(styles.Green)
+			ratingStyle = lipgloss.NewStyle().Foreground(styles.ActiveTheme().Success)
 		case item.Rating >= 5:
-			ratingStyle = lipgloss.NewStyle().Foreground(styles.PlexOrange)
+			ratingStyle = lipgloss.NewStyle().Foreground(styles.ActiveTheme().Accent)
 		default:
-			ratingStyle = lipgloss.NewStyle().Foreground(styles.Red)
+			ratingStyle = lipgloss.NewStyle().Foreground(styles.ActiveTheme().Error)
 		}
 		b.WriteString(ratingStyle.Render(ratingText))
 		b.WriteString("\n")
@@ -364,7 +364,7 @@ func renderMediaHeader(item domain.MediaItem, width int) string {
 	}
 	switch item.WatchStatus() {
 	case domain.WatchStatusWatched:
-		b.WriteString(styles.PlayedStyle.Render(styles.PlayedChar + " Watched"))
+		b.WriteString(styles.PlayedStyle().Render(styles.PlayedChar + " Watched"))
 	case domain.WatchStatusInProgress:
 		var pct float64
 		if item.Duration > 0 {
@@ -373,9 +373,9 @@ func renderMediaHeader(item domain.MediaItem, width int) string {
 		bar := styles.RenderProgressBar(pct, barWidth)
 		b.WriteString(bar)
 		b.WriteString("\n")
-		b.WriteString(styles.InProgressStyle.Render(fmt.Sprintf("%s %.0f%% watched (%s remaining)", styles.InProgressChar, pct, formatRemainingDuration(item))))
+		b.WriteString(styles.InProgressStyle().Render(fmt.Sprintf("%s %.0f%% watched (%s remaining)", styles.InProgressChar, pct, formatRemainingDuration(item))))
 	case domain.WatchStatusUnwatched:
-		b.WriteString(styles.DimStyle.Render(styles.UnplayedChar + " Unwatched"))
+		b.WriteString(styles.DimStyle().Render(styles.UnplayedChar + " Unwatched"))
 	}
 
 	return strings.TrimRight(b.String(), "\n")
@@ -407,7 +407,7 @@ func renderMediaBody(item domain.MediaItem, width int) string {
 		bodyWidth = 80
 	}
 	summary := wordWrap(item.Summary, bodyWidth)
-	return styles.SubtitleStyle.Render(summary)
+	return styles.SubtitleStyle().Render(summary)
 }
 
 func renderMediaFooter(item domain.MediaItem, width int) string {
@@ -422,7 +422,7 @@ func renderMediaFooter(item domain.MediaItem, width int) string {
 
 	// Separator
 	separator := strings.Repeat("─", width)
-	b.WriteString(styles.DimStyle.Render(separator))
+	b.WriteString(styles.DimStyle().Render(separator))
 	b.WriteString("\n")
 
 	// Row 1: container | video codec | resolution
@@ -474,9 +474,9 @@ func renderMediaFooter(item domain.MediaItem, width int) string {
 		return s + strings.Repeat(" ", w-len(s))
 	}
 
-	b.WriteString(styles.DimStyle.Render(padTo(row1c1, col1W) + spacer + padTo(row1c2, col2W) + spacer + row1c3))
+	b.WriteString(styles.DimStyle().Render(padTo(row1c1, col1W) + spacer + padTo(row1c2, col2W) + spacer + row1c3))
 	b.WriteString("\n")
-	b.WriteString(styles.DimStyle.Render(padTo(row2c1, col1W) + spacer + padTo(row2c2, col2W) + spacer + row2c3))
+	b.WriteString(styles.DimStyle().Render(padTo(row2c1, col1W) + spacer + padTo(row2c2, col2W) + spacer + row2c3))
 
 	return strings.TrimRight(b.String(), "\n")
 }
@@ -485,7 +485,7 @@ func (i Inspector) renderShowInspector(show domain.Show, width int) inspectorCon
 	var header strings.Builder
 
 	// Title
-	header.WriteString(styles.TitleStyle.Render(styles.Truncate(show.Title, width)))
+	header.WriteString(styles.TitleStyle().Render(styles.Truncate(show.Title, width)))
 	header.WriteString("\n")
 
 	// Meta line: Year • Content Rating
@@ -497,7 +497,7 @@ func (i Inspector) renderShowInspector(show domain.Show, width int) inspectorCon
 		metaParts = append(metaParts, show.ContentRating)
 	}
 	if len(metaParts) > 0 {
-		header.WriteString(styles.DimStyle.Render(strings.Join(metaParts, " · ")))
+		header.WriteString(styles.DimStyle().Render(strings.Join(metaParts, " · ")))
 		header.WriteString("\n")
 	}
 
@@ -507,20 +507,20 @@ func (i Inspector) renderShowInspector(show domain.Show, width int) inspectorCon
 		var ratingStyle lipgloss.Style
 		switch {
 		case show.Rating >= 7:
-			ratingStyle = lipgloss.NewStyle().Foreground(styles.Green)
+			ratingStyle = lipgloss.NewStyle().Foreground(styles.ActiveTheme().Success)
 		case show.Rating >= 5:
-			ratingStyle = lipgloss.NewStyle().Foreground(styles.PlexOrange)
+			ratingStyle = lipgloss.NewStyle().Foreground(styles.ActiveTheme().Accent)
 		default:
-			ratingStyle = lipgloss.NewStyle().Foreground(styles.Red)
+			ratingStyle = lipgloss.NewStyle().Foreground(styles.ActiveTheme().Error)
 		}
 		header.WriteString(ratingStyle.Render(ratingText))
 		header.WriteString("\n")
 	}
 
 	// Season/Episode counts and progress
-	header.WriteString(styles.DimStyle.Render(fmt.Sprintf("Seasons: %d", show.SeasonCount)))
+	header.WriteString(styles.DimStyle().Render(fmt.Sprintf("Seasons: %d", show.SeasonCount)))
 	header.WriteString("\n")
-	header.WriteString(styles.DimStyle.Render(fmt.Sprintf("Episodes: %d", show.EpisodeCount)))
+	header.WriteString(styles.DimStyle().Render(fmt.Sprintf("Episodes: %d", show.EpisodeCount)))
 	header.WriteString("\n")
 
 	watched := show.EpisodeCount - show.UnwatchedCount
@@ -528,7 +528,7 @@ func (i Inspector) renderShowInspector(show domain.Show, width int) inspectorCon
 	if show.EpisodeCount > 0 {
 		progress = float64(watched) / float64(show.EpisodeCount) * 100
 	}
-	header.WriteString(styles.DimStyle.Render(fmt.Sprintf("Progress: %.0f%% (%d/%d)", progress, watched, show.EpisodeCount)))
+	header.WriteString(styles.DimStyle().Render(fmt.Sprintf("Progress: %.0f%% (%d/%d)", progress, watched, show.EpisodeCount)))
 
 	// Body: summary
 	bodyStr := ""
@@ -537,7 +537,7 @@ func (i Inspector) renderShowInspector(show domain.Show, width int) inspectorCon
 		if bodyWidth > 80 {
 			bodyWidth = 80
 		}
-		bodyStr = styles.SubtitleStyle.Render(wordWrap(show.Summary, bodyWidth))
+		bodyStr = styles.SubtitleStyle().Render(wordWrap(show.Summary, bodyWidth))
 	}
 
 	return inspectorContent{
@@ -550,15 +550,15 @@ func (i Inspector) renderSeasonInspector(season domain.Season, width int) string
 	var b strings.Builder
 
 	// Title
-	b.WriteString(styles.TitleStyle.Render(styles.Truncate(season.DisplayTitle(), width)))
+	b.WriteString(styles.TitleStyle().Render(styles.Truncate(season.DisplayTitle(), width)))
 	b.WriteString("\n")
 
 	// Show title
-	b.WriteString(styles.SubtitleStyle.Render(styles.Truncate(season.ShowTitle, width)))
+	b.WriteString(styles.SubtitleStyle().Render(styles.Truncate(season.ShowTitle, width)))
 	b.WriteString("\n")
 
 	// Episode count
-	b.WriteString(styles.DimStyle.Render(fmt.Sprintf("Episodes: %d", season.EpisodeCount)))
+	b.WriteString(styles.DimStyle().Render(fmt.Sprintf("Episodes: %d", season.EpisodeCount)))
 	b.WriteString("\n")
 
 	// Progress
@@ -567,7 +567,7 @@ func (i Inspector) renderSeasonInspector(season domain.Season, width int) string
 	if season.EpisodeCount > 0 {
 		progress = float64(watched) / float64(season.EpisodeCount) * 100
 	}
-	b.WriteString(styles.DimStyle.Render(fmt.Sprintf("Progress: %.0f%% (%d/%d)", progress, watched, season.EpisodeCount)))
+	b.WriteString(styles.DimStyle().Render(fmt.Sprintf("Progress: %.0f%% (%d/%d)", progress, watched, season.EpisodeCount)))
 
 	return b.String()
 }
@@ -577,16 +577,16 @@ func (i Inspector) renderLibraryInspector(lib *domain.Library, width int) string
 
 	// Handle synthetic "Playlists" entry
 	if lib.Type == "playlist" {
-		b.WriteString(styles.TitleStyle.Render(styles.Truncate(lib.Name, width)))
+		b.WriteString(styles.TitleStyle().Render(styles.Truncate(lib.Name, width)))
 		b.WriteString("\n\n")
-		b.WriteString(styles.DimStyle.Render("Browse and manage your playlists"))
+		b.WriteString(styles.DimStyle().Render("Browse and manage your playlists"))
 		b.WriteString("\n\n")
-		b.WriteString(styles.SubtitleStyle.Render("Press Enter to browse"))
+		b.WriteString(styles.SubtitleStyle().Render("Press Enter to browse"))
 		return b.String()
 	}
 
 	// Library name as title
-	b.WriteString(styles.TitleStyle.Render(styles.Truncate(lib.Name, width)))
+	b.WriteString(styles.TitleStyle().Render(styles.Truncate(lib.Name, width)))
 	b.WriteString("\n\n")
 
 	// Library type
@@ -594,17 +594,17 @@ func (i Inspector) renderLibraryInspector(lib *domain.Library, width int) string
 	if lib.Type == "show" {
 		typeLabel = "TV Shows"
 	}
-	b.WriteString(styles.DimStyle.Render(fmt.Sprintf("Type: %s", typeLabel)))
+	b.WriteString(styles.DimStyle().Render(fmt.Sprintf("Type: %s", typeLabel)))
 	b.WriteString("\n")
 
 	// Item count from sync state
 	if state, ok := i.libraryStates[lib.ID]; ok && state.Loaded > 0 {
-		b.WriteString(styles.DimStyle.Render(fmt.Sprintf("Items: %d", state.Loaded)))
+		b.WriteString(styles.DimStyle().Render(fmt.Sprintf("Items: %d", state.Loaded)))
 		b.WriteString("\n")
 	}
 
 	b.WriteString("\n")
-	b.WriteString(styles.SubtitleStyle.Render("Press Enter to browse"))
+	b.WriteString(styles.SubtitleStyle().Render("Press Enter to browse"))
 
 	return b.String()
 }
@@ -613,7 +613,7 @@ func (i Inspector) renderPlaylistInspector(playlist domain.Playlist, width int) 
 	var b strings.Builder
 
 	// Playlist name as title
-	b.WriteString(styles.TitleStyle.Render(styles.Truncate(playlist.Title, width)))
+	b.WriteString(styles.TitleStyle().Render(styles.Truncate(playlist.Title, width)))
 	b.WriteString("\n\n")
 
 	// Playlist type
@@ -624,17 +624,17 @@ func (i Inspector) renderPlaylistInspector(playlist domain.Playlist, width int) 
 	case "photo":
 		typeLabel = "Photo"
 	}
-	b.WriteString(styles.DimStyle.Render(fmt.Sprintf("Type: %s Playlist", typeLabel)))
+	b.WriteString(styles.DimStyle().Render(fmt.Sprintf("Type: %s Playlist", typeLabel)))
 	b.WriteString("\n")
 
 	// Smart playlist indicator
 	if playlist.Smart {
-		b.WriteString(styles.DimStyle.Render("Smart: Yes"))
+		b.WriteString(styles.DimStyle().Render("Smart: Yes"))
 		b.WriteString("\n")
 	}
 
 	// Item count
-	b.WriteString(styles.DimStyle.Render(fmt.Sprintf("Items: %d", playlist.ItemCount)))
+	b.WriteString(styles.DimStyle().Render(fmt.Sprintf("Items: %d", playlist.ItemCount)))
 	b.WriteString("\n")
 
 	// Duration
@@ -642,19 +642,19 @@ func (i Inspector) renderPlaylistInspector(playlist domain.Playlist, width int) 
 		hours := int(playlist.Duration.Hours())
 		minutes := int(playlist.Duration.Minutes()) % 60
 		if hours > 0 {
-			b.WriteString(styles.DimStyle.Render(fmt.Sprintf("Duration: %dh %dm", hours, minutes)))
+			b.WriteString(styles.DimStyle().Render(fmt.Sprintf("Duration: %dh %dm", hours, minutes)))
 		} else {
-			b.WriteString(styles.DimStyle.Render(fmt.Sprintf("Duration: %dm", minutes)))
+			b.WriteString(styles.DimStyle().Render(fmt.Sprintf("Duration: %dm", minutes)))
 		}
 		b.WriteString("\n")
 	}
 
 	b.WriteString("\n")
-	b.WriteString(styles.SubtitleStyle.Render("Press Enter to browse"))
+	b.WriteString(styles.SubtitleStyle().Render("Press Enter to browse"))
 	b.WriteString("\n")
-	b.WriteString(styles.DimStyle.Render("n: New Playlist"))
+	b.WriteString(styles.DimStyle().Render("n: New Playlist"))
 	b.WriteString("\n")
-	b.WriteString(styles.DimStyle.Render("x: Delete Playlist"))
+	b.WriteString(styles.DimStyle().Render("x: Delete Playlist"))
 
 	return b.String()
 }

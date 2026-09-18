@@ -15,7 +15,7 @@ const posterPlacementMarker = "\x00"
 // RenderSpinner renders a loading spinner
 func RenderSpinner(frame int) string {
 	frames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
-	return styles.SpinnerStyle.Render(frames[frame%len(frames)])
+	return styles.SpinnerStyle().Render(frames[frame%len(frames)])
 }
 
 // View renders the application
@@ -198,7 +198,7 @@ func (m Model) renderLibraryColumn(libCol *components.ListColumn, width, height 
 }
 
 func (m Model) renderPosterPreview(width, height int) string {
-	frameW, frameH := styles.InactiveBorder.GetFrameSize()
+	frameW, frameH := styles.InactiveBorder().GetFrameSize()
 	contentWidth := max(1, width-frameW-1)
 	contentHeight := max(1, height-frameH)
 
@@ -210,13 +210,13 @@ func (m Model) renderPosterPreview(width, height int) string {
 		poster = posterPlacementMarker + m.posterContent
 	}
 	if poster == "" {
-		poster = styles.DimStyle.Render("No preview available")
+		poster = styles.DimStyle().Render("No preview available")
 	}
 
-	title := styles.AccentStyle.Render(styles.Truncate("Preview", contentWidth))
+	title := styles.AccentStyle().Render(styles.Truncate("Preview", contentWidth))
 	bodyHeight := max(1, contentHeight-2)
 	body := lipgloss.Place(contentWidth, bodyHeight, lipgloss.Center, lipgloss.Center, poster)
-	rendered := styles.InactiveBorder.
+	rendered := styles.InactiveBorder().
 		Width(width - frameW).
 		Height(contentHeight).
 		Render(styles.InsetLeft(title + "\n\n" + body))
@@ -289,9 +289,9 @@ func (m Model) renderFooter() string {
 	if m.isPlayingTitle != "" {
 		// Pulsing indicator via spinner frame
 		frames := []string{"▶", "▷"}
-		icon := styles.AccentStyle.Render(frames[m.SpinnerFrame/5%len(frames)])
+		icon := styles.AccentStyle().Render(frames[m.SpinnerFrame/5%len(frames)])
 		title := styles.Truncate(m.isPlayingTitle, 40)
-		left = icon + " " + styles.DimStyle.Render("Playing: "+title)
+		left = icon + " " + styles.DimStyle().Render("Playing: "+title)
 	} else if m.Loading {
 		statusText := "Loading..."
 
@@ -326,16 +326,16 @@ func (m Model) renderFooter() string {
 			}
 		}
 
-		left = RenderSpinner(m.SpinnerFrame) + " " + styles.DimStyle.Render(statusText)
+		left = RenderSpinner(m.SpinnerFrame) + " " + styles.DimStyle().Render(statusText)
 	} else if m.StatusMsg != "" {
 		if m.StatusIsErr {
-			left = styles.ErrorStyle.Render(m.StatusMsg)
+			left = styles.ErrorStyle().Render(m.StatusMsg)
 		} else {
-			left = styles.DimStyle.Render(m.StatusMsg)
+			left = styles.DimStyle().Render(m.StatusMsg)
 		}
 	} else {
-		left = styles.AccentStyle.Render("↑↓") + styles.DimStyle.Render(" navigate  ") +
-			styles.AccentStyle.Render("←→") + styles.DimStyle.Render(" back/expand")
+		left = styles.AccentStyle().Render("↑↓") + styles.DimStyle().Render(" navigate  ") +
+			styles.AccentStyle().Render("←→") + styles.DimStyle().Render(" back/expand")
 	}
 
 	// Center section: context-specific hints based on column type
@@ -343,14 +343,14 @@ func (m Model) renderFooter() string {
 	if top := m.ColumnStack.Top(); top != nil {
 		switch top.ColumnType() {
 		case components.ColumnTypePlaylists:
-			center = styles.AccentStyle.Render("x") + styles.DimStyle.Render(" Delete")
+			center = styles.AccentStyle().Render("x") + styles.DimStyle().Render(" Delete")
 		case components.ColumnTypePlaylistItems:
-			center = styles.AccentStyle.Render("x") + styles.DimStyle.Render(" Remove")
+			center = styles.AccentStyle().Render("x") + styles.DimStyle().Render(" Remove")
 		}
 	}
 
 	// Right side: "? help" hint
-	right := styles.AccentStyle.Render("?") + styles.DimStyle.Render(" help")
+	right := styles.AccentStyle().Render("?") + styles.DimStyle().Render(" help")
 
 	// Layout: left + centered hints + right
 	leftWidth := lipgloss.Width(left)
@@ -423,10 +423,10 @@ func (m Model) renderHelp() string {
 	colW := keyW + descW
 	totalW := colW*2 + gap
 
-	bg := lipgloss.NewStyle().Background(styles.SlateDark)
-	keyStyle := bg.Foreground(styles.PlexOrange).Width(keyW)
-	descStyle := bg.Foreground(styles.LightGray).Width(descW)
-	headerStyle := bg.Foreground(styles.PlexOrange).Bold(true).Width(colW)
+	bg := lipgloss.NewStyle().Background(styles.ActiveTheme().BgDark)
+	keyStyle := bg.Foreground(styles.ActiveTheme().Accent).Width(keyW)
+	descStyle := bg.Foreground(styles.ActiveTheme().FgMid).Width(descW)
+	headerStyle := bg.Foreground(styles.ActiveTheme().Accent).Bold(true).Width(colW)
 	gapStyle := bg.Width(gap)
 	fullRowStyle := bg.Width(totalW)
 
@@ -473,11 +473,11 @@ func (m Model) renderHelp() string {
 	}
 
 	footerStyle := lipgloss.NewStyle().
-		Foreground(styles.DimGray).
+		Foreground(styles.ActiveTheme().FgDim).
 		Italic(true).
 		Width(totalW).
 		Align(lipgloss.Center).
-		Background(styles.SlateDark).
+		Background(styles.ActiveTheme().BgDark).
 		MarginTop(1)
 
 	rows = append(rows, footerStyle.Render("Press any key to return"))
@@ -486,8 +486,8 @@ func (m Model) renderHelp() string {
 
 	modal := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(styles.PlexOrange).
-		Background(styles.SlateDark).
+		BorderForeground(styles.ActiveTheme().Accent).
+		Background(styles.ActiveTheme().BgDark).
 		Padding(1, 2).
 		Render(content)
 
@@ -500,29 +500,29 @@ func (m Model) renderHelp() string {
 func renderConfirmDialog(width, height int, title, body, yesLabel, noLabel, cancelLabel string, defaultIsNo bool) string {
 	modalWidth := 54
 
-	bg := lipgloss.NewStyle().Background(styles.SlateDark)
+	bg := lipgloss.NewStyle().Background(styles.ActiveTheme().BgDark)
 
 	titleStyle := bg.
-		Foreground(styles.White).
+		Foreground(styles.ActiveTheme().FgBright).
 		Bold(true).
 		Width(modalWidth).
 		Align(lipgloss.Center)
 
 	bodyStyle := bg.
-		Foreground(styles.LightGray).
+		Foreground(styles.ActiveTheme().FgMid).
 		Width(modalWidth).
 		Align(lipgloss.Center).
 		MarginTop(1)
 
 	primaryStyle := lipgloss.NewStyle().
-		Foreground(styles.White).
-		Background(styles.PlexOrange).
+		Foreground(styles.ActiveTheme().FgBright).
+		Background(styles.ActiveTheme().Accent).
 		Padding(0, 2).
 		Bold(true)
 
 	secondaryStyle := lipgloss.NewStyle().
-		Foreground(styles.LightGray).
-		Background(styles.SlateLight).
+		Foreground(styles.ActiveTheme().FgMid).
+		Background(styles.ActiveTheme().BgMid).
 		Padding(0, 2)
 
 	var yesBtn, noBtn string
@@ -540,8 +540,8 @@ func renderConfirmDialog(width, height int, title, body, yesLabel, noLabel, canc
 
 	if cancelLabel != "" {
 		cancelBtn := lipgloss.NewStyle().
-			Foreground(styles.DimGray).
-			Background(styles.SlateLight).
+			Foreground(styles.ActiveTheme().FgDim).
+			Background(styles.ActiveTheme().BgMid).
 			Padding(0, 2).
 			Render(cancelLabel)
 		buttonList = append(buttonList, btnGap, cancelBtn)
@@ -563,8 +563,8 @@ func renderConfirmDialog(width, height int, title, body, yesLabel, noLabel, canc
 
 	modal := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(styles.PlexOrange).
-		Background(styles.SlateDark).
+		BorderForeground(styles.ActiveTheme().Accent).
+		Background(styles.ActiveTheme().BgDark).
 		Padding(1, 2).
 		Render(content)
 

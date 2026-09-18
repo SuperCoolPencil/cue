@@ -207,18 +207,18 @@ func (m SortModal) View() string {
 		// Style the line
 		if selected {
 			line := lipgloss.NewStyle().
-				Foreground(styles.White).
-				Background(styles.SlateLight).
+				Foreground(styles.ActiveTheme().FgBright).
+				Background(styles.ActiveTheme().BgMid).
 				Render(styles.Pad(text, 20))
 			lines = append(lines, line)
 		} else if isActive {
 			line := lipgloss.NewStyle().
-				Foreground(styles.PlexOrange).
+				Foreground(styles.ActiveTheme().Accent).
 				Render(styles.Pad(text, 20))
 			lines = append(lines, line)
 		} else {
 			line := lipgloss.NewStyle().
-				Foreground(styles.LightGray).
+				Foreground(styles.ActiveTheme().FgMid).
 				Render(styles.Pad(text, 20))
 			lines = append(lines, line)
 		}
@@ -226,15 +226,15 @@ func (m SortModal) View() string {
 
 	hintText := "← asc   desc →"
 	pad := max((20-lipgloss.Width(hintText))/2, 0)
-	hint := styles.DimStyle.Render(strings.Repeat(" ", pad) + hintText)
+	hint := styles.DimStyle().Render(strings.Repeat(" ", pad) + hintText)
 	content := strings.Join(lines, "\n") + "\n\n" + hint
 
 	modal := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(styles.PlexOrange).
-		Background(styles.SlateDark).
+		BorderForeground(styles.ActiveTheme().Accent).
+		Background(styles.ActiveTheme().BgDark).
 		Padding(0, 1).
-		Render(styles.ModalTitleStyle.Render("Sort by") + "\n" + content)
+		Render(styles.ModalTitleStyle().Render("Sort by") + "\n" + content)
 
 	return modal
 }

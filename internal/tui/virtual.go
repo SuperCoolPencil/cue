@@ -5,6 +5,7 @@ import (
 	"runtime"
 
 	"github.com/SuperCoolPencil/cue/internal/domain"
+	"github.com/SuperCoolPencil/cue/internal/tui/styles"
 )
 
 const (
@@ -56,6 +57,7 @@ func (m Model) configEntries() []domain.Library {
 	}
 	return []domain.Library{
 		{ID: "__config_player__", Name: "Player: " + m.playerName(), Type: "config"},
+		{ID: "__config_theme__", Name: "Theme: " + styles.ActiveTheme().Name, Type: "config"},
 		{ID: "__config_watch__", Name: "Watch indicators: " + showWatch, Type: "config"},
 		{ID: "__config_counts__", Name: "Library counts: " + showCounts, Type: "config"},
 		{ID: "__config_hide_watched__", Name: "Hide watched: " + hideWatched, Type: "config"},

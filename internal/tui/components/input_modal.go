@@ -21,8 +21,8 @@ func NewInputModal() InputModal {
 	ti.CharLimit = 50
 	ti.Width = 30
 	ti.Prompt = ""
-	ti.TextStyle = lipgloss.NewStyle().Foreground(styles.White)
-	ti.PlaceholderStyle = styles.DimStyle
+	ti.TextStyle = lipgloss.NewStyle().Foreground(styles.ActiveTheme().FgBright)
+	ti.PlaceholderStyle = styles.DimStyle()
 
 	return InputModal{
 		input: ti,
@@ -83,18 +83,18 @@ func (m InputModal) View() string {
 	const modalWidth = 36
 
 	titleStyle := lipgloss.NewStyle().
-		Foreground(styles.White).
+		Foreground(styles.ActiveTheme().FgBright).
 		Bold(true).
 		Width(modalWidth).
-		Background(styles.SlateDark)
+		Background(styles.ActiveTheme().BgDark)
 
 	inputStyle := lipgloss.NewStyle().
 		Width(modalWidth).
-		Background(styles.SlateDark)
+		Background(styles.ActiveTheme().BgDark)
 
 	spacer := lipgloss.NewStyle().
 		Width(modalWidth).
-		Background(styles.SlateDark).
+		Background(styles.ActiveTheme().BgDark).
 		Render("")
 
 	content := lipgloss.JoinVertical(lipgloss.Left,
@@ -105,8 +105,8 @@ func (m InputModal) View() string {
 
 	modal := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(styles.PlexOrange).
-		Background(styles.SlateDark).
+		BorderForeground(styles.ActiveTheme().Accent).
+		Background(styles.ActiveTheme().BgDark).
 		Padding(1, 2).
 		Render(content)
 
