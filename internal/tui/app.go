@@ -89,6 +89,8 @@ func playlistsLibraryEntry() domain.Library {
 	}
 }
 
+// virtualLibraryEntries returns the full set of synthetic library entries.
+// This is the stable, complete list used for counting and backward-compat.
 func virtualLibraryEntries() []domain.Library {
 	return []domain.Library{
 		{ID: continueLibraryID, Name: "Continue Watching", Type: "cue"},
@@ -101,11 +103,62 @@ func virtualLibraryEntries() []domain.Library {
 	}
 }
 
-// allLibraryEntries returns libraries plus the synthetic Playlists entry
+// libraryTypePriority returns a sort key so movies sort before shows,
+// and shows before any other library type.
+func libraryTypePriority(libType string) int {
+	switch libType {
+	case "movie":
+		return 0
+	case "show":
+		return 1
+	default:
+		return 2
+	}
+}
+
+// allLibraryEntries assembles the full ordered list shown in the root column:
+//  1. Transient smart sections (Continue Watching, Recently Added, Watch Queue)
+//     – each is omitted when it has no items to avoid visual clutter.
+//  2. Real server libraries sorted by type: movies → shows → everything else.
+//  3. Playlists.
+//  4. Management entries: Smart Filters, Profiles, Config, Cache.
 func (m *Model) allLibraryEntries() []domain.Library {
-	entries := append([]domain.Library{}, virtualLibraryEntries()...)
-	entries = append(entries, m.Libraries...)
-	return append(entries, playlistsLibraryEntry())
+	var entries []domain.Library
+
+	// 1. Transient sections – only include when non-empty.
+	if m.LibraryService != nil {
+		if items := m.LibraryService.ContinueWatching(1); len(items) > 0 {
+			entries = append(entries, domain.Library{ID: continueLibraryID, Name: "Continue Watching", Type: "cue"})
+		}
+		if items := m.LibraryService.RecentlyAdded(1); len(items) > 0 {
+			entries = append(entries, domain.Library{ID: recentLibraryID, Name: "Recently Added", Type: "cue"})
+		}
+	}
+	if m.PlaylistService != nil {
+		if items := m.PlaylistService.QueueItems(); len(items) > 0 {
+			entries = append(entries, domain.Library{ID: queueLibraryID, Name: "Watch Queue", Type: "cue"})
+		}
+	}
+
+	// 2. Real libraries sorted by type priority.
+	sorted := append([]domain.Library{}, m.Libraries...)
+	slices.SortStableFunc(sorted, func(a, b domain.Library) int {
+		return libraryTypePriority(a.Type) - libraryTypePriority(b.Type)
+	})
+	entries = append(entries, sorted...)
+
+	// 3. Playlists.
+	entries = append(entries, playlistsLibraryEntry())
+
+	// 4. Management entries.
+	entries = append(entries,
+		domain.Library{ID: filtersLibraryID, Name: "Smart Filters", Type: "cue"},
+		domain.Library{ID: profilesLibraryID, Name: "Profiles", Type: "cue"},
+		domain.Library{ID: configLibraryID, Name: "Config", Type: "cue"},
+		domain.Library{ID: cacheLibraryID, Name: "Cache", Type: "cue"},
+	)
+
+	return entries
 }
 
 // Model is the main Bubble Tea model for the application

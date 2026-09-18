@@ -397,6 +397,12 @@ func (m *Model) drillVirtualLibrary(v domain.Library, cursor int) *drillResult {
 				return &drillResult{AwaitKind: AwaitNone}
 			}
 		}
+		// Apply to ALL columns in the stack so existing views update immediately
+		for i := 0; i < m.ColumnStack.Len(); i++ {
+			if col := m.ColumnStack.Get(i); col != nil {
+				col.SetShowWatchStatus(m.UIConfig.ShowWatchStatus)
+			}
+		}
 		if top := m.ColumnStack.Top(); top != nil {
 			top.SetItems(m.configEntries())
 		}
@@ -410,6 +416,12 @@ func (m *Model) drillVirtualLibrary(v domain.Library, cursor int) *drillResult {
 				m.StatusMsg = fmt.Sprintf("Failed to save config: %v", err)
 				m.StatusIsErr = true
 				return &drillResult{AwaitKind: AwaitNone}
+			}
+		}
+		// Apply to ALL columns in the stack so existing views update immediately
+		for i := 0; i < m.ColumnStack.Len(); i++ {
+			if col := m.ColumnStack.Get(i); col != nil {
+				col.SetShowLibraryCounts(m.UIConfig.ShowLibraryCounts)
 			}
 		}
 		if top := m.ColumnStack.Top(); top != nil {
@@ -654,11 +666,11 @@ func (m *Model) navigateToSearchResult(item search.FilterItem) tea.Cmd {
 	libCol.SetShowLibraryCounts(m.UIConfig.ShowLibraryCounts)
 	m.Inspector.SetLibraryStates(m.LibraryStates)
 
-	// Find and select the library
-	virtualOffset := len(virtualLibraryEntries())
-	for i, lib := range m.Libraries {
+	// Find and select the library by scanning the actual entries list,
+	// since transient virtual sections may be absent (skipped when empty).
+	for i, lib := range m.allLibraryEntries() {
 		if lib.ID == navCtx.LibraryID {
-			libCol.SetSelectedIndex(i + virtualOffset)
+			libCol.SetSelectedIndex(i)
 			break
 		}
 	}

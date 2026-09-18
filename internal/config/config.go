@@ -125,7 +125,7 @@ func LoadConfig() (*Config, error) {
 		"server.type", "server.url", "server.token", "server.plex_account_token", "server.user_id",
 		"server.username", "server.device_id",
 		"player.command", "player.args", "player.start_flag",
-		"ui.show_watch_status", "ui.show_library_counts", "ui.hide_watched", "ui.autoplay",
+		"ui.show_watch_status", "ui.show_library_counts", "ui.hide_watched", "ui.autoplay", "ui.play_next_on_select",
 		"logging.file", "logging.level", "current_profile",
 	} {
 		_ = viper.BindEnv(key)
