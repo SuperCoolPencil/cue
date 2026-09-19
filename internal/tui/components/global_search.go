@@ -48,6 +48,9 @@ func (o *GlobalSearch) Show() {
 	o.input.SetValue("")
 	o.input.Placeholder = "Type to search movies, TV shows, episodes..."
 	o.input.Prompt = "🔍 "
+	o.input.PromptStyle = styles.AccentStyle()
+	o.input.TextStyle = lipgloss.NewStyle().Foreground(styles.ActiveTheme().FgBright)
+	o.input.PlaceholderStyle = styles.DimStyle()
 	o.results = nil
 	o.cursor = 0
 	o.offset = 0
@@ -79,12 +82,12 @@ func (o *GlobalSearch) SetSize(width, height int) {
 	o.width = width
 	o.height = height
 
-	modalWidth := (width * 65) / 100
+	modalWidth := (width * 60) / 100
 	if modalWidth < 50 {
 		modalWidth = 50
 	}
-	if modalWidth > 110 {
-		modalWidth = 110
+	if modalWidth > 100 {
+		modalWidth = 100
 	}
 	o.input.Width = modalWidth - 10
 }
@@ -185,22 +188,22 @@ func (o GlobalSearch) View() string {
 		return ""
 	}
 
-	// Dynamic modal dimensions based on terminal width and height
-	modalWidth := (o.width * 65) / 100
+	// Modal dimensions
+	modalWidth := (o.width * 60) / 100
 	if modalWidth < 50 {
 		modalWidth = 50
 	}
-	if modalWidth > 110 {
-		modalWidth = 110
+	if modalWidth > 100 {
+		modalWidth = 100
 	}
 	contentWidth := modalWidth - 4
 
-	maxResults := (o.height - 12) / 2
+	maxResults := (o.height - 10) / 2
 	if maxResults < 5 {
 		maxResults = 5
 	}
-	if maxResults > 12 {
-		maxResults = 12
+	if maxResults > 10 {
+		maxResults = 10
 	}
 
 	var b strings.Builder
@@ -214,20 +217,14 @@ func (o GlobalSearch) View() string {
 	b.WriteString(header)
 	b.WriteString("\n\n")
 
-	// Input box container (sleek inner panel)
-	inputBox := lipgloss.NewStyle().
-		Background(theme.BgMid).
-		Foreground(theme.FgBright).
-		Padding(0, 1).
-		Width(contentWidth).
-		Render(o.input.View())
-	b.WriteString(inputBox)
+	// Input box
+	b.WriteString(o.input.View())
 	b.WriteString("\n\n")
 
 	// Results area
 	if o.loading {
 		spinner := styles.SpinnerStyle().Render("⠋ Searching library...")
-		b.WriteString(lipgloss.NewStyle().Width(contentWidth).Align(lipgloss.Center).Render(spinner))
+		b.WriteString(spinner)
 		b.WriteString("\n")
 	} else {
 		o.renderResults(&b, contentWidth, maxResults)
@@ -236,7 +233,6 @@ func (o GlobalSearch) View() string {
 	b.WriteString("\n")
 
 	// Footer bar with shortcuts & count
-	footerStyle := lipgloss.NewStyle().Width(contentWidth)
 	hints := styles.DimStyle().Render("↑/↓ navigate  •  enter select  •  esc cancel")
 	var countStr string
 	if len(o.results) > 0 {
@@ -248,7 +244,7 @@ func (o GlobalSearch) View() string {
 		gapLen = 1
 	}
 	footerRow := hints + strings.Repeat(" ", gapLen) + countStr
-	b.WriteString(footerStyle.Render(footerRow))
+	b.WriteString(footerRow)
 
 	// Outer Modal Box
 	content := lipgloss.NewStyle().
@@ -329,13 +325,13 @@ func (o GlobalSearch) renderResults(b *strings.Builder, contentWidth, maxResults
 
 	if len(o.results) == 0 && o.input.Value() != "" {
 		emptyMsg := styles.DimStyle().Render(fmt.Sprintf("No matches found for %q", o.input.Value()))
-		b.WriteString(lipgloss.NewStyle().Width(contentWidth).Align(lipgloss.Center).Render(emptyMsg))
+		b.WriteString(emptyMsg)
 		b.WriteString("\n")
 		return
 	}
 	if len(o.results) == 0 {
 		placeholderMsg := styles.DimStyle().Render("Start typing to search movies, TV shows, and episodes...")
-		b.WriteString(lipgloss.NewStyle().Width(contentWidth).Align(lipgloss.Center).Render(placeholderMsg))
+		b.WriteString(placeholderMsg)
 		b.WriteString("\n")
 		return
 	}
@@ -379,11 +375,7 @@ func (o GlobalSearch) renderResults(b *strings.Builder, contentWidth, maxResults
 				Padding(0, 1).
 				Render(badgeStr))
 		} else {
-			line.WriteString(lipgloss.NewStyle().
-				Foreground(theme.FgMid).
-				Background(theme.BgMid).
-				Padding(0, 1).
-				Render(badgeStr))
+			line.WriteString(styles.DimBadgeStyle().Render(badgeStr))
 		}
 		line.WriteString(" ")
 
@@ -411,15 +403,13 @@ func (o GlobalSearch) renderResults(b *strings.Builder, contentWidth, maxResults
 		// Title with match highlighting
 		line.WriteString(highlightMatches(title, matchedIndexes, selected))
 
-		// Full-width line wrapping with consistent background on selection
 		rowStr := line.String()
-		rowWidth := lipgloss.Width(rowStr)
-		if rowWidth < contentWidth {
-			padding := strings.Repeat(" ", contentWidth-rowWidth)
-			if selected {
+		if selected {
+			// Pad the rest of the selected row with BgMid background so the selection highlight bar is full width
+			rowWidth := lipgloss.Width(rowStr)
+			if rowWidth < contentWidth {
+				padding := strings.Repeat(" ", contentWidth-rowWidth)
 				rowStr += lipgloss.NewStyle().Background(theme.BgMid).Render(padding)
-			} else {
-				rowStr += padding
 			}
 		}
 
