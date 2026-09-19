@@ -209,7 +209,7 @@ func (o GlobalSearch) View() string {
 	var b strings.Builder
 	theme := styles.ActiveTheme()
 
-	// Title / Header
+	// Title / Header (no background)
 	header := lipgloss.NewStyle().
 		Foreground(theme.Accent).
 		Bold(true).
@@ -217,7 +217,7 @@ func (o GlobalSearch) View() string {
 	b.WriteString(header)
 	b.WriteString("\n\n")
 
-	// Input box
+	// Input box (clean, transparent background)
 	b.WriteString(o.input.View())
 	b.WriteString("\n\n")
 
@@ -232,7 +232,7 @@ func (o GlobalSearch) View() string {
 
 	b.WriteString("\n")
 
-	// Footer bar with shortcuts & count
+	// Footer bar (no background)
 	hints := styles.DimStyle().Render("↑/↓ navigate  •  enter select  •  esc cancel")
 	var countStr string
 	if len(o.results) > 0 {
@@ -246,18 +246,13 @@ func (o GlobalSearch) View() string {
 	footerRow := hints + strings.Repeat(" ", gapLen) + countStr
 	b.WriteString(footerRow)
 
-	// Outer Modal Box
-	content := lipgloss.NewStyle().
-		Width(contentWidth).
-		Render(b.String())
-
+	// Outer Modal Box (No background, clean rounded border)
 	modal := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(theme.Accent).
 		Padding(1, 2).
-		Background(theme.BgDark).
 		Width(modalWidth).
-		Render(content)
+		Render(b.String())
 
 	// Center horizontally and vertically
 	return lipgloss.Place(
@@ -269,14 +264,14 @@ func (o GlobalSearch) View() string {
 	)
 }
 
-// highlightMatches renders text with matched characters highlighted cleanly using theme styles
+// highlightMatches renders text with matched characters highlighted cleanly using theme styles (no background fills)
 func highlightMatches(text string, matchedIndexes []int, selected bool) string {
 	if len(text) == 0 {
 		return ""
 	}
 	if len(matchedIndexes) == 0 {
 		if selected {
-			return lipgloss.NewStyle().Foreground(styles.ActiveTheme().FgBright).Background(styles.ActiveTheme().BgMid).Render(text)
+			return lipgloss.NewStyle().Foreground(styles.ActiveTheme().FgBright).Bold(true).Render(text)
 		}
 		return lipgloss.NewStyle().Foreground(styles.ActiveTheme().FgMid).Render(text)
 	}
@@ -290,8 +285,8 @@ func highlightMatches(text string, matchedIndexes []int, selected bool) string {
 	var normalStyle, matchStyle lipgloss.Style
 
 	if selected {
-		normalStyle = lipgloss.NewStyle().Foreground(theme.FgBright).Background(theme.BgMid)
-		matchStyle = lipgloss.NewStyle().Foreground(theme.Accent).Background(theme.BgMid).Bold(true)
+		normalStyle = lipgloss.NewStyle().Foreground(theme.FgBright).Bold(true)
+		matchStyle = lipgloss.NewStyle().Foreground(theme.Accent).Bold(true).Underline(true)
 	} else {
 		normalStyle = lipgloss.NewStyle().Foreground(theme.FgMid)
 		matchStyle = lipgloss.NewStyle().Foreground(theme.Accent).Bold(true)
@@ -319,7 +314,7 @@ func highlightMatches(text string, matchedIndexes []int, selected bool) string {
 	return result.String()
 }
 
-// renderResults renders the search results list
+// renderResults renders the search results list without background boxes
 func (o GlobalSearch) renderResults(b *strings.Builder, contentWidth, maxResults int) {
 	theme := styles.ActiveTheme()
 
@@ -349,7 +344,7 @@ func (o GlobalSearch) renderResults(b *strings.Builder, contentWidth, maxResults
 
 		// Cursor indicator
 		if selected {
-			line.WriteString(lipgloss.NewStyle().Foreground(theme.Accent).Background(theme.BgMid).Bold(true).Render("▸ "))
+			line.WriteString(lipgloss.NewStyle().Foreground(theme.Accent).Bold(true).Render("▸ "))
 		} else {
 			line.WriteString("  ")
 		}
@@ -403,17 +398,7 @@ func (o GlobalSearch) renderResults(b *strings.Builder, contentWidth, maxResults
 		// Title with match highlighting
 		line.WriteString(highlightMatches(title, matchedIndexes, selected))
 
-		rowStr := line.String()
-		if selected {
-			// Pad the rest of the selected row with BgMid background so the selection highlight bar is full width
-			rowWidth := lipgloss.Width(rowStr)
-			if rowWidth < contentWidth {
-				padding := strings.Repeat(" ", contentWidth-rowWidth)
-				rowStr += lipgloss.NewStyle().Background(theme.BgMid).Render(padding)
-			}
-		}
-
-		b.WriteString(rowStr)
+		b.WriteString(line.String())
 		b.WriteString("\n")
 	}
 
