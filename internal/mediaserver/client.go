@@ -33,6 +33,9 @@ type MediaSource interface {
 	// GetImage fetches raw image bytes (poster/artwork) from an absolute URL,
 	// authenticated against the media server. Used for ASCII/terminal image rendering.
 	GetImage(ctx context.Context, url string) ([]byte, error)
+
+	// GetWebURL returns the web interface URL for a given item.
+	GetWebURL(ctx context.Context, itemID string) (string, error)
 }
 
 // NewClient creates a new MediaSource based on the server type.

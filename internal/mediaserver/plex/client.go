@@ -79,17 +79,28 @@ func (c *Client) FetchIdentity(ctx context.Context) error {
 		return err
 	}
 
-	// Parse XML response
-	var identity struct {
+	// Try JSON unmarshaling first (since doRequest sends Accept: application/json)
+	var jsonResp struct {
+		MediaContainer struct {
+			MachineIdentifier string `json:"machineIdentifier"`
+		} `json:"MediaContainer"`
+	}
+	if err := json.Unmarshal(body, &jsonResp); err == nil && jsonResp.MediaContainer.MachineIdentifier != "" {
+		c.machineIdentifier = jsonResp.MediaContainer.MachineIdentifier
+		return nil
+	}
+
+	// Fallback to XML unmarshaling
+	var xmlResp struct {
 		XMLName           xml.Name `xml:"MediaContainer"`
 		MachineIdentifier string   `xml:"machineIdentifier,attr"`
 	}
-	if err := xml.Unmarshal(body, &identity); err != nil {
-		return err
+	if err := xml.Unmarshal(body, &xmlResp); err == nil && xmlResp.MachineIdentifier != "" {
+		c.machineIdentifier = xmlResp.MachineIdentifier
+		return nil
 	}
 
-	c.machineIdentifier = identity.MachineIdentifier
-	return nil
+	return fmt.Errorf("could not parse machineIdentifier from /identity response")
 }
 
 // ensureIdentity ensures the server's machineIdentifier is available
@@ -819,3 +830,14 @@ func (c *Client) GetContinueWatching(ctx context.Context) ([]*domain.MediaItem, 
 
 	return MapVideoItems(container.Metadata, c.baseURL), nil
 }
+
+// GetWebURL returns the web interface URL for a given item in Plex
+func (c *Client) GetWebURL(ctx context.Context, itemID string) (string, error) {
+	_ = c.ensureIdentity(ctx)
+	key := url.QueryEscape("/library/metadata/" + itemID)
+	if c.machineIdentifier != "" {
+		return fmt.Sprintf("%s/web/index.html#!/server/%s/details?key=%s", c.baseURL, c.machineIdentifier, key), nil
+	}
+	return fmt.Sprintf("%s/web/index.html#!/details?key=%s", c.baseURL, key), nil
+}
+

@@ -45,6 +45,10 @@ func (c *posterClientStub) GetImage(_ context.Context, url string) ([]byte, erro
 	return []byte("image"), nil
 }
 
+func (c *posterClientStub) GetWebURL(_ context.Context, itemID string) (string, error) {
+	return "http://localhost:32400/web/index.html#!/server/mach123/details?key=%2Flibrary%2Fmetadata%2F" + itemID, nil
+}
+
 func TestFetchPosterDataRetriesTransientFailures(t *testing.T) {
 	client := &posterClientStub{}
 

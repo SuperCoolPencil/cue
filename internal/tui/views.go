@@ -409,6 +409,7 @@ func (m Model) renderHelp() string {
 	}
 
 	other := []helpEntry{
+		{"o", "Open in browser"},
 		{"r", "Refresh library"},
 		{"R", "Refresh all"},
 		{"q", "Quit"},

@@ -142,3 +142,32 @@ func TestEnterOnShowDirectPlaysWhenEnabled(t *testing.T) {
 		t.Fatalf("status = %q", got.StatusMsg)
 	}
 }
+
+func TestOpenBrowserKeybinding(t *testing.T) {
+	col := components.NewListColumn(components.ColumnTypeMovies, "Movies")
+	col.SetItems([]*domain.MediaItem{{ID: "m1", Title: "Movie", Type: domain.MediaTypeMovie}})
+	col.SetFocused(true)
+
+	model := Model{
+		State:       StateBrowsing,
+		ColumnStack: NewColumnStack(),
+		MediaClient: &posterClientStub{},
+	}
+	model.ColumnStack.Push(col, 0)
+
+	updated, cmd := model.handleKeyMsg(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("o")})
+	got := updated.(Model)
+
+	if got.StatusMsg != "Opening in browser..." {
+		t.Fatalf("status = %q, want 'Opening in browser...'", got.StatusMsg)
+	}
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd for open in browser")
+	}
+}
+
+func TestHelpListsOpenBrowserShortcut(t *testing.T) {
+	if !strings.Contains((Model{}).renderHelp(), "Open in browser") {
+		t.Fatal("help does not list Open in browser")
+	}
+}

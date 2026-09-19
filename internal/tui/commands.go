@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/SuperCoolPencil/cue/internal/browser"
 	"github.com/SuperCoolPencil/cue/internal/config"
 	"github.com/SuperCoolPencil/cue/internal/domain"
 	"github.com/SuperCoolPencil/cue/internal/library"
@@ -601,5 +602,25 @@ func RemoveFromQueueCmd(svc *playlist.Service, itemID string) tea.Cmd {
 			return QueueUpdatedMsg{Error: err}
 		}
 		return QueueUpdatedMsg{Message: "Removed from queue"}
+	}
+}
+
+// OpenInBrowserCmd resolves the item's web URL and opens it in the default browser.
+func OpenInBrowserCmd(client mediaserver.MediaSource, itemID string) tea.Cmd {
+	return func() tea.Msg {
+		if client == nil {
+			return StatusMsg{Message: "Error: Media server client unavailable", IsError: true}
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		webURL, err := client.GetWebURL(ctx, itemID)
+		if err != nil {
+			return StatusMsg{Message: "Error getting web URL: " + err.Error(), IsError: true}
+		}
+		if err := browser.OpenURL(webURL); err != nil {
+			return StatusMsg{Message: "Error opening browser: " + err.Error(), IsError: true}
+		}
+		return StatusMsg{Message: "Opened in browser"}
 	}
 }

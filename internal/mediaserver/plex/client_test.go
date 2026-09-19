@@ -134,3 +134,22 @@ func TestSearchIncludesShows(t *testing.T) {
 		t.Fatal("show missing from search results")
 	}
 }
+
+func TestGetWebURL(t *testing.T) {
+	c := testClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/identity" {
+			_, _ = w.Write([]byte(`<MediaContainer machineIdentifier="mach123"/>`))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+
+	webURL, err := c.GetWebURL(context.Background(), "2098")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	expected := c.baseURL + "/web/index.html#!/server/machine1/details?key=%2Flibrary%2Fmetadata%2F2098"
+	if webURL != expected {
+		t.Fatalf("got %q, want %q", webURL, expected)
+	}
+}

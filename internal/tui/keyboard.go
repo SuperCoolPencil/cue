@@ -161,6 +161,8 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleQueue()
 	case key.Matches(msg, Keys.NextEpisode):
 		return m.handleNextEpisode()
+	case key.Matches(msg, Keys.OpenBrowser):
+		return m.handleOpenBrowser()
 	}
 
 	// Let the focused column handle remaining keys (j/k/g/G navigation)
@@ -512,6 +514,23 @@ func (m Model) playOrConfirmResume(item *domain.MediaItem, playlist []domain.Med
 		return m, nil
 	}
 	return m, PlayItemCmd(m.PlaybackSvc, *item, false, m.UIConfig.Autoplay, playlist...)
+}
+
+// handleOpenBrowser opens the selected item in the server's web interface
+func (m Model) handleOpenBrowser() (tea.Model, tea.Cmd) {
+	top := m.ColumnStack.Top()
+	if top == nil {
+		return m, nil
+	}
+	itemID := top.SelectedItemID()
+	if itemID == "" {
+		return m, nil
+	}
+	m.StatusMsg = "Opening in browser..."
+	return m, tea.Batch(
+		OpenInBrowserCmd(m.MediaClient, itemID),
+		ClearStatusCmd(3*time.Second),
+	)
 }
 
 // handleToggleInspector toggles the inspector panel visibility or focuses it

@@ -82,6 +82,7 @@ Cue uses the Kitty graphics protocol when running directly in Kitty. Other termi
 | `N` | Play next unwatched episode |
 | `s` | Sort options |
 | `i` | Toggle inspector panel |
+| `o` | Open selected item in server web browser |
 | `r` / `R` | Refresh the current library / all libraries |
 | `g` / `G` | Jump to top / bottom |
 | `Ctrl+u` / `d` | Page up / half-page down |

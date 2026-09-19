@@ -282,6 +282,19 @@ func (c *ListColumn) SelectedItem() interface{} {
 	}
 }
 
+// SelectedItemID returns the server ID of the currently selected item in the column.
+func (c *ListColumn) SelectedItemID() string {
+	count := c.ItemCount()
+	if count == 0 || c.cursor >= count {
+		return ""
+	}
+	idx := c.mapIndex(c.cursor)
+	if idx >= len(c.items) {
+		return ""
+	}
+	return c.items[idx].GetID()
+}
+
 func (c *ListColumn) SelectedIndex() int {
 	return c.cursor
 }

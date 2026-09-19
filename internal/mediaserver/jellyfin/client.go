@@ -819,3 +819,9 @@ func (c *Client) GetContinueWatching(ctx context.Context) ([]*domain.MediaItem, 
 	}
 	return items, nil
 }
+
+// GetWebURL returns the web interface URL for a given item in Jellyfin
+func (c *Client) GetWebURL(ctx context.Context, itemID string) (string, error) {
+	return fmt.Sprintf("%s/web/index.html#/details?id=%s", c.baseURL, itemID), nil
+}
+

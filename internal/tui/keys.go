@@ -38,6 +38,7 @@ type KeyMap struct {
 	NewPlaylist     key.Binding
 	Queue           key.Binding
 	NextEpisode     key.Binding
+	OpenBrowser     key.Binding
 
 	// Confirmations
 	Confirm key.Binding
@@ -175,6 +176,10 @@ func DefaultKeyMap() KeyMap {
 		NextEpisode: key.NewBinding(
 			key.WithKeys("N"),
 			key.WithHelp("N", "next episode"),
+		),
+		OpenBrowser: key.NewBinding(
+			key.WithKeys("o"),
+			key.WithHelp("o", "open in browser"),
 		),
 
 		// Confirmations
