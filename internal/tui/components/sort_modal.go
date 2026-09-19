@@ -226,7 +226,7 @@ func (m SortModal) View() string {
 
 	hintText := "← asc   desc →"
 	pad := max((20-lipgloss.Width(hintText))/2, 0)
-	hint := styles.DimStyle().Render(strings.Repeat(" ", pad) + hintText)
+	hint := styles.BrightStyle().Render(strings.Repeat(" ", pad) + hintText)
 	content := strings.Join(lines, "\n") + "\n\n" + hint
 
 	modal := lipgloss.NewStyle().

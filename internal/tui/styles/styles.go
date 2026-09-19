@@ -206,9 +206,27 @@ func DimStyle() lipgloss.Style {
 		Foreground(active.FgDim)
 }
 
+func BrightStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(active.FgBright)
+}
+
 func AccentStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
 		Foreground(active.Accent)
+}
+
+// RenderKeyHint formats a key/icon and its action label according to the dashboard design standard:
+// - The key/icon is highlighted in Accent color.
+// - The action label is formatted in gray / dim text.
+func RenderKeyHint(key, label string) string {
+	if key == "" {
+		return DimStyle().Render(label)
+	}
+	if label == "" {
+		return AccentStyle().Render(key)
+	}
+	return AccentStyle().Render(key) + DimStyle().Render(" "+label)
 }
 
 func ErrorStyle() lipgloss.Style {

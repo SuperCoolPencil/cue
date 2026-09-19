@@ -11,6 +11,7 @@ import (
 type FilterItem struct {
 	Item      domain.ListItem // *MediaItem or *Show
 	Title     string
+	Summary   string
 	Type      domain.MediaType
 	LibraryID string
 }
@@ -58,6 +59,7 @@ func (s *Service) SearchRemote(ctx context.Context, query string) ([]FilterResul
 			FilterItem: FilterItem{
 				Item:      item,
 				Title:     item.Title,
+				Summary:   item.Summary,
 				Type:      item.Type,
 				LibraryID: item.LibraryID,
 			},
@@ -81,13 +83,15 @@ func (s *Service) FilterLocal(query string, libraries []domain.Library) []Filter
 		return nil
 	}
 
-	// Build lowercase titles for fuzzy search
-	titles := make([]string, len(items))
+	targets := make([]SearchTarget, len(items))
 	for i, item := range items {
-		titles[i] = strings.ToLower(item.Title)
+		targets[i] = SearchTarget{
+			Title:   item.Title,
+			Summary: item.Summary,
+		}
 	}
 
-	matches := FuzzySearch(query, titles)
+	matches := FuzzySearchTargets(query, targets)
 
 	results := make([]FilterResult, len(matches))
 	for i, match := range matches {
@@ -111,6 +115,7 @@ func (s *Service) gatherLibraryItems(lib domain.Library) []FilterItem {
 				items = append(items, FilterItem{
 					Item:      m,
 					Title:     m.Title,
+					Summary:   m.Summary,
 					Type:      domain.MediaTypeMovie,
 					LibraryID: lib.ID,
 				})
@@ -122,6 +127,7 @@ func (s *Service) gatherLibraryItems(lib domain.Library) []FilterItem {
 				items = append(items, FilterItem{
 					Item:      sh,
 					Title:     sh.Title,
+					Summary:   sh.Summary,
 					Type:      domain.MediaTypeShow,
 					LibraryID: lib.ID,
 				})
@@ -135,6 +141,7 @@ func (s *Service) gatherLibraryItems(lib domain.Library) []FilterItem {
 					items = append(items, FilterItem{
 						Item:      v,
 						Title:     v.Title,
+						Summary:   v.Summary,
 						Type:      domain.MediaTypeMovie,
 						LibraryID: lib.ID,
 					})
@@ -142,6 +149,7 @@ func (s *Service) gatherLibraryItems(lib domain.Library) []FilterItem {
 					items = append(items, FilterItem{
 						Item:      v,
 						Title:     v.Title,
+						Summary:   v.Summary,
 						Type:      domain.MediaTypeShow,
 						LibraryID: lib.ID,
 					})

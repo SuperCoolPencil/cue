@@ -171,3 +171,33 @@ func TestHelpListsOpenBrowserShortcut(t *testing.T) {
 		t.Fatal("help does not list Open in browser")
 	}
 }
+
+func TestConfirmDialogArrowKeyNavigation(t *testing.T) {
+	// Deletion default is index 1 ("No"). Navigating Left shifts to 0 ("Yes").
+	model := Model{
+		State:             StateConfirmDelete,
+		confirmFocusedIdx: 1,
+		pendingDelete:     &domain.MediaItem{ID: "m1", Title: "Movie", Type: domain.MediaTypeMovie},
+		MediaClient:       &posterClientStub{},
+	}
+
+	// Press Left arrow
+	updatedLeft, _ := model.handleKeyMsg(tea.KeyMsg{Type: tea.KeyLeft})
+	gotLeft := updatedLeft.(Model)
+	if gotLeft.confirmFocusedIdx != 0 {
+		t.Fatalf("confirmFocusedIdx = %d, want 0 after Left", gotLeft.confirmFocusedIdx)
+	}
+
+	// Press Enter to confirm deletion on Yes
+	updatedEnter, cmd := gotLeft.handleKeyMsg(tea.KeyMsg{Type: tea.KeyEnter})
+	gotEnter := updatedEnter.(Model)
+	if gotEnter.State != StateBrowsing {
+		t.Fatalf("state = %v, want StateBrowsing after confirming Yes", gotEnter.State)
+	}
+	if gotEnter.pendingDelete != nil {
+		t.Fatal("pendingDelete should be cleared")
+	}
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd for deletion")
+	}
+}

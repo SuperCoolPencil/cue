@@ -26,3 +26,20 @@ func TestFilterLocalSearchesCachedLibraries(t *testing.T) {
 		t.Fatalf("results = %#v", results)
 	}
 }
+
+func TestFilterLocalSearchesSummary(t *testing.T) {
+	st, _ := store.NewLibraryStore("", "", "")
+	libs := []domain.Library{
+		{ID: "movies", Name: "Movies", Type: "movie"},
+	}
+	_ = st.SaveMovies("movies", []*domain.MediaItem{
+		{ID: "m1", Title: "Inception", Summary: "A thief who enters dreams of others."},
+		{ID: "m2", Title: "Interstellar", Summary: "A team of explorers travel through a wormhole."},
+	}, 1)
+	svc := NewService(st)
+
+	results := svc.FilterLocal("wormhole", libs)
+	if len(results) != 1 || results[0].Title != "Interstellar" {
+		t.Fatalf("expected Interstellar for query 'wormhole', got %#v", results)
+	}
+}

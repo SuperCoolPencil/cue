@@ -268,7 +268,7 @@ func (m *PlaylistModal) View() string {
 
 	// Help text
 	lines = append(lines, "")
-	helpText := styles.DimStyle().Render("Space: Toggle  n: New  Esc: Done")
+	helpText := styles.BrightStyle().Render("Space: Toggle  n: New  Esc: Done")
 	lines = append(lines, helpText)
 
 	content := strings.Join(lines, "\n")

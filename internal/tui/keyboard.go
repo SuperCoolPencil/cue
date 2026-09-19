@@ -23,21 +23,60 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case StateConfirmLogout:
 		switch {
-		case key.Matches(msg, Keys.Confirm):
-			// User confirmed logout
-			return m, LogoutCmd()
-		case key.Matches(msg, Keys.Deny):
-			// User cancelled
+		case msg.Type == tea.KeyLeft || msg.String() == "h" || msg.Type == tea.KeyUp || msg.String() == "k":
+			if m.confirmFocusedIdx > 0 {
+				m.confirmFocusedIdx--
+			}
+			return m, nil
+		case msg.Type == tea.KeyRight || msg.String() == "l" || msg.Type == tea.KeyDown || msg.String() == "j" || msg.Type == tea.KeyTab:
+			if m.confirmFocusedIdx < 1 {
+				m.confirmFocusedIdx++
+			}
+			return m, nil
+		case msg.Type == tea.KeyEnter:
+			if m.confirmFocusedIdx == 0 {
+				return m, LogoutCmd()
+			}
 			m.State = StateBrowsing
+			return m, nil
+		case msg.String() == "y" || msg.String() == "Y":
+			return m, LogoutCmd()
+		case key.Matches(msg, Keys.Deny), key.Matches(msg, Keys.Escape):
+			m.State = StateBrowsing
+			return m, nil
 		}
 		return m, nil
+
 	case StateConfirmResume:
 		if m.pendingPlayback == nil {
 			m.State = StateBrowsing
 			return m, nil
 		}
 		switch {
-		case key.Matches(msg, Keys.Confirm):
+		case msg.Type == tea.KeyLeft || msg.String() == "h" || msg.Type == tea.KeyUp || msg.String() == "k":
+			if m.confirmFocusedIdx > 0 {
+				m.confirmFocusedIdx--
+			}
+			return m, nil
+		case msg.Type == tea.KeyRight || msg.String() == "l" || msg.Type == tea.KeyDown || msg.String() == "j" || msg.Type == tea.KeyTab:
+			if m.confirmFocusedIdx < 2 {
+				m.confirmFocusedIdx++
+			}
+			return m, nil
+		case msg.Type == tea.KeyEnter:
+			item := *m.pendingPlayback
+			playlist := m.pendingPlaylist
+			m.pendingPlayback = nil
+			m.pendingPlaylist = nil
+			m.State = StateBrowsing
+			if m.confirmFocusedIdx == 0 {
+				return m, PlayItemCmd(m.PlaybackSvc, item, true, m.UIConfig.Autoplay, playlist...)
+			} else if m.confirmFocusedIdx == 1 {
+				return m, PlayItemCmd(m.PlaybackSvc, item, false, m.UIConfig.Autoplay, playlist...)
+			}
+			return m, nil
+
+		case msg.String() == "y" || msg.String() == "Y":
 			item := *m.pendingPlayback
 			playlist := m.pendingPlaylist
 			m.pendingPlayback = nil
@@ -57,6 +96,7 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.pendingPlayback = nil
 			m.pendingPlaylist = nil
 			m.State = StateBrowsing
+			return m, nil
 		}
 		return m, nil
 
@@ -66,12 +106,32 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		switch {
-		// Deletion defaults to No, so Enter is a safe cancellation rather
-		// than confirmation. Explicit Y is required to delete the item.
+		case msg.Type == tea.KeyLeft || msg.String() == "h" || msg.Type == tea.KeyUp || msg.String() == "k":
+			if m.confirmFocusedIdx > 0 {
+				m.confirmFocusedIdx--
+			}
+			return m, nil
+		case msg.Type == tea.KeyRight || msg.String() == "l" || msg.Type == tea.KeyDown || msg.String() == "j" || msg.Type == tea.KeyTab:
+			if m.confirmFocusedIdx < 2 {
+				m.confirmFocusedIdx++
+			}
+			return m, nil
 		case msg.Type == tea.KeyEnter:
+			if m.confirmFocusedIdx == 0 {
+				item := m.pendingDelete
+				m.pendingDelete = nil
+				m.State = StateBrowsing
+				m.StatusMsg = "Deleting " + item.GetTitle() + "..."
+				return m, tea.Batch(
+					DeleteMediaItemCmd(m.MediaClient, item.GetID(), item.GetLibraryID()),
+					ClearStatusCmd(3*time.Second),
+				)
+			}
 			m.pendingDelete = nil
 			m.State = StateBrowsing
-		case key.Matches(msg, Keys.Confirm):
+			return m, nil
+
+		case msg.String() == "y" || msg.String() == "Y":
 			item := m.pendingDelete
 			m.pendingDelete = nil
 			m.State = StateBrowsing
@@ -83,6 +143,7 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, Keys.Deny), key.Matches(msg, Keys.Escape):
 			m.pendingDelete = nil
 			m.State = StateBrowsing
+			return m, nil
 		}
 		return m, nil
 
@@ -242,7 +303,8 @@ func (m Model) handleFilter() (tea.Model, tea.Cmd) {
 func (m Model) handleGlobalSearch() (tea.Model, tea.Cmd) {
 	m.GlobalSearch.Show()
 	m.GlobalSearch.SetSize(m.Width, m.Height)
-	return m, m.GlobalSearch.Init()
+	pc := m.updateInspector()
+	return m, tea.Batch(m.GlobalSearch.Init(), pc)
 }
 
 // handleDrillIn handles drilling into the selected item (l key)
@@ -511,6 +573,7 @@ func (m Model) playOrConfirmResume(item *domain.MediaItem, playlist []domain.Med
 		m.pendingPlayback = item
 		m.pendingPlaylist = playlist
 		m.State = StateConfirmResume
+		m.confirmFocusedIdx = 0
 		return m, nil
 	}
 	return m, PlayItemCmd(m.PlaybackSvc, *item, false, m.UIConfig.Autoplay, playlist...)
@@ -567,6 +630,7 @@ func (m Model) handleToggleInspector() (tea.Model, tea.Cmd) {
 // handleLogout shows the logout confirmation
 func (m Model) handleLogout() (tea.Model, tea.Cmd) {
 	m.State = StateConfirmLogout
+	m.confirmFocusedIdx = 0
 	return m, nil
 }
 
@@ -596,6 +660,7 @@ func (m Model) handleDelete() (tea.Model, tea.Cmd) {
 			case "movie", "show", "episode":
 				m.pendingDelete = item
 				m.State = StateConfirmDelete
+				m.confirmFocusedIdx = 1
 			}
 		}
 	}
@@ -731,6 +796,10 @@ func (m Model) handleGlobalSearchInput(msg tea.KeyMsg) (Model, tea.Cmd) {
 			if navCmd := m.navigateToSearchResult(*result); navCmd != nil {
 				cmds = append(cmds, navCmd)
 			}
+		}
+	} else if m.GlobalSearch.IsVisible() {
+		if pc := m.updateInspector(); pc != nil {
+			cmds = append(cmds, pc)
 		}
 	}
 	return m, tea.Batch(cmds...)

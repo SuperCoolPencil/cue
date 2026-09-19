@@ -12,17 +12,23 @@ type FuzzyMatch struct {
 	MatchedIndexes []int // Character positions that matched (for highlighting)
 }
 
+// SearchTarget represents a title and optional description/summary to search against
+type SearchTarget struct {
+	Title   string
+	Summary string
+}
+
 // FuzzySearch performs token-based fuzzy matching optimized for media titles.
-//
-// Algorithm:
-//  1. Tokenize query into words
-//  2. For each query token, find the best match in the title
-//  3. All query tokens must match (AND semantics)
-//  4. Word order does not matter ("robot mr" matches "Mr. Robot")
-//  5. Typo tolerance based on token length
-//
-// Returns matches sorted by score (lower = better).
 func FuzzySearch(query string, titles []string) []FuzzyMatch {
+	targets := make([]SearchTarget, len(titles))
+	for i, t := range titles {
+		targets[i] = SearchTarget{Title: t}
+	}
+	return FuzzySearchTargets(query, targets)
+}
+
+// FuzzySearchTargets performs token-based fuzzy matching against titles and descriptions.
+func FuzzySearchTargets(query string, targets []SearchTarget) []FuzzyMatch {
 	query = strings.TrimSpace(query)
 	if query == "" {
 		return nil
@@ -35,13 +41,13 @@ func FuzzySearch(query string, titles []string) []FuzzyMatch {
 
 	var matches []FuzzyMatch
 
-	for i, title := range titles {
-		if match, ok := matchTitle(title, queryTokens, i); ok {
+	for i, target := range targets {
+		if match, ok := matchTarget(target.Title, target.Summary, queryTokens, i); ok {
 			matches = append(matches, match)
 		}
 	}
 
-	sortMatches(matches, titles)
+	sortMatches(matches, targets)
 	return matches
 }
 
@@ -96,45 +102,64 @@ type TokenMatch struct {
 	MatchedIndexes []int // Character positions in title that matched
 }
 
-// matchTitle attempts to match all query tokens against the title
-func matchTitle(title string, queryTokens []Token, index int) (FuzzyMatch, bool) {
+// matchTarget attempts to match all query tokens against title first, then summary
+func matchTarget(title, summary string, queryTokens []Token, index int) (FuzzyMatch, bool) {
 	lowerTitle := strings.ToLower(title)
 	titleTokens := tokenize(title)
-
-	// Track which title tokens have been used (each can only match one query token)
 	usedTitleTokens := make([]bool, len(titleTokens))
 
-	var allMatchedIndexes []int
-	totalScore := 0
-
-	// Each query token must find a match
-	for _, queryToken := range queryTokens {
-		bestMatch, bestTitleIdx := findBestTokenMatch(queryToken, titleTokens, lowerTitle, usedTitleTokens)
-
-		if bestMatch.Score < 0 {
-			// No match found for this query token
-			return FuzzyMatch{}, false
-		}
-
-		// Mark this title token as used
-		if bestTitleIdx >= 0 {
-			usedTitleTokens[bestTitleIdx] = true
-		}
-
-		totalScore += bestMatch.Score
-		allMatchedIndexes = append(allMatchedIndexes, bestMatch.MatchedIndexes...)
+	var lowerSummary string
+	var summaryTokens []Token
+	var usedSummaryTokens []bool
+	if summary != "" {
+		lowerSummary = strings.ToLower(summary)
+		summaryTokens = tokenize(summary)
+		usedSummaryTokens = make([]bool, len(summaryTokens))
 	}
 
-	// Bonus for matching more of the title (penalize titles with many extra words)
-	extraWords := len(titleTokens) - len(queryTokens)
+	var titleMatchedIndexes []int
+	totalScore := 0
+	summaryMatchCount := 0
+
+	// Each query token must find a match in title or summary
+	for _, queryToken := range queryTokens {
+		bestTitleMatch, bestTitleIdx := findBestTokenMatch(queryToken, titleTokens, lowerTitle, usedTitleTokens)
+
+		if bestTitleMatch.Score >= 0 {
+			if bestTitleIdx >= 0 {
+				usedTitleTokens[bestTitleIdx] = true
+			}
+			totalScore += bestTitleMatch.Score
+			titleMatchedIndexes = append(titleMatchedIndexes, bestTitleMatch.MatchedIndexes...)
+		} else if summary != "" {
+			bestSummaryMatch, bestSummaryIdx := findBestTokenMatch(queryToken, summaryTokens, lowerSummary, usedSummaryTokens)
+			if bestSummaryMatch.Score >= 0 {
+				if bestSummaryIdx >= 0 {
+					usedSummaryTokens[bestSummaryIdx] = true
+				}
+				totalScore += bestSummaryMatch.Score + 150
+				summaryMatchCount++
+			} else {
+				return FuzzyMatch{}, false
+			}
+		} else {
+			return FuzzyMatch{}, false
+		}
+	}
+
+	extraWords := len(titleTokens) - (len(queryTokens) - summaryMatchCount)
 	if extraWords > 0 {
 		totalScore += extraWords * 5
+	}
+
+	if summaryMatchCount > 0 {
+		totalScore += 200
 	}
 
 	return FuzzyMatch{
 		Index:          index,
 		Score:          totalScore,
-		MatchedIndexes: dedupeAndSort(allMatchedIndexes),
+		MatchedIndexes: dedupeAndSort(titleMatchedIndexes),
 	}, true
 }
 
@@ -339,19 +364,19 @@ func dedupeAndSort(indexes []int) []int {
 }
 
 // sortMatches sorts by score (lower = better), then by title length
-func sortMatches(matches []FuzzyMatch, titles []string) {
+func sortMatches(matches []FuzzyMatch, targets []SearchTarget) {
 	for i := 1; i < len(matches); i++ {
 		j := i
-		for j > 0 && compareFuzzyMatches(matches[j], matches[j-1], titles) {
+		for j > 0 && compareFuzzyMatches(matches[j], matches[j-1], targets) {
 			matches[j], matches[j-1] = matches[j-1], matches[j]
 			j--
 		}
 	}
 }
 
-func compareFuzzyMatches(a, b FuzzyMatch, titles []string) bool {
+func compareFuzzyMatches(a, b FuzzyMatch, targets []SearchTarget) bool {
 	if a.Score != b.Score {
 		return a.Score < b.Score
 	}
-	return len(titles[a.Index]) < len(titles[b.Index])
+	return len(targets[a.Index].Title) < len(targets[b.Index].Title)
 }

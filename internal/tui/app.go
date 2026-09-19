@@ -229,6 +229,7 @@ type Model struct {
 	pendingPlaylist    []domain.MediaItem
 	PendingSelectionID string // ID of item to select after load completes
 	pendingDelete      domain.ListItem
+	confirmFocusedIdx  int
 
 	// posterItemID tracks the item a poster fetch was last requested for,
 	// so stale PosterLoadedMsg results are ignored.
@@ -724,6 +725,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.posterContent = msg.Content
 		m.posterPlacement = msg.Placement
 		m.posterImageID = msg.ImageID
+
+		if m.GlobalSearch.IsVisible() {
+			m.GlobalSearch.SetPoster(msg.Content)
+		} else if m.ColumnStack != nil && m.ColumnStack.Top() != nil {
+			m.Inspector.SetPoster(msg.Content)
+		}
 		return m, nil
 
 	case SeasonForPlaybackLoadedMsg:
@@ -1027,6 +1034,46 @@ func (m Model) findLibrary(id string) *domain.Library {
 
 // updateInspector updates the inspector with the selected item from middle column
 func (m *Model) updateInspector() tea.Cmd {
+	if m.GlobalSearch.IsVisible() {
+		sel := m.GlobalSearch.Selected()
+		if sel == nil || sel.Item == nil {
+			m.GlobalSearch.SetPoster("")
+			if m.hasPosterState() {
+				m.invalidatePoster()
+			}
+			return nil
+		}
+		posterItem := sel.Item
+		id := ""
+		if item, ok := posterItem.(*domain.MediaItem); ok {
+			id = item.ID
+		} else if show, ok := posterItem.(*domain.Show); ok {
+			id = show.ID
+		}
+		url := PosterURL(posterItem)
+		if id == "" || (url == "" && !posterMetadataFallback(posterItem)) {
+			m.GlobalSearch.SetPoster("")
+			if m.hasPosterState() {
+				m.invalidatePoster()
+			}
+			return nil
+		}
+
+		width := 24
+		maxHeight := 18
+		requestKey := strings.Join([]string{id, url, fmt.Sprint(width), fmt.Sprint(maxHeight)}, "\x00")
+		if requestKey == m.posterRequestKey {
+			m.GlobalSearch.SetPoster(m.posterContent)
+			return nil
+		}
+
+		m.posterRequestID++
+		requestID := m.posterRequestID
+		m.posterRequestKey = requestKey
+		m.posterItemID = id
+		return FetchPosterCmd(m.MediaClient, m.posterOutput, requestID, id, url, width, maxHeight)
+	}
+
 	var top *components.ListColumn
 	if m.ColumnStack != nil {
 		top = m.ColumnStack.Top()
@@ -1066,6 +1113,7 @@ func (m *Model) updateInspector() tea.Cmd {
 	maxHeight := m.posterMaxHeight()
 	requestKey := strings.Join([]string{id, url, fmt.Sprint(width), fmt.Sprint(maxHeight)}, "\x00")
 	if requestKey == m.posterRequestKey {
+		m.Inspector.SetPoster(m.posterContent)
 		return nil
 	}
 

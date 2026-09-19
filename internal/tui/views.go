@@ -334,8 +334,7 @@ func (m Model) renderFooter() string {
 			left = styles.DimStyle().Render(m.StatusMsg)
 		}
 	} else {
-		left = styles.AccentStyle().Render("↑↓") + styles.DimStyle().Render(" navigate  ") +
-			styles.AccentStyle().Render("←→") + styles.DimStyle().Render(" back/expand")
+		left = styles.RenderKeyHint("↑↓", "navigate") + "  " + styles.RenderKeyHint("←→", "back/expand")
 	}
 
 	// Center section: context-specific hints based on column type
@@ -343,14 +342,14 @@ func (m Model) renderFooter() string {
 	if top := m.ColumnStack.Top(); top != nil {
 		switch top.ColumnType() {
 		case components.ColumnTypePlaylists:
-			center = styles.AccentStyle().Render("x") + styles.DimStyle().Render(" Delete")
+			center = styles.RenderKeyHint("x", "Delete")
 		case components.ColumnTypePlaylistItems:
-			center = styles.AccentStyle().Render("x") + styles.DimStyle().Render(" Remove")
+			center = styles.RenderKeyHint("x", "Remove")
 		}
 	}
 
 	// Right side: "? help" hint
-	right := styles.AccentStyle().Render("?") + styles.DimStyle().Render(" help")
+	right := styles.RenderKeyHint("?", "help")
 
 	// Layout: left + centered hints + right
 	leftWidth := lipgloss.Width(left)
@@ -498,8 +497,8 @@ func (m Model) renderHelp() string {
 }
 
 // renderConfirmDialog renders a centered confirmation modal with styled buttons
-func renderConfirmDialog(width, height int, title, body, yesLabel, noLabel, cancelLabel string, defaultIsNo bool) string {
-	modalWidth := 54
+func renderConfirmDialog(width, height int, title, body string, buttonLabels []string, focusedIdx int) string {
+	modalWidth := 56
 
 	bg := lipgloss.NewStyle().Background(styles.ActiveTheme().BgDark)
 
@@ -515,37 +514,29 @@ func renderConfirmDialog(width, height int, title, body, yesLabel, noLabel, canc
 		Align(lipgloss.Center).
 		MarginTop(1)
 
-	primaryStyle := lipgloss.NewStyle().
-		Foreground(styles.ActiveTheme().FgBright).
-		Background(styles.ActiveTheme().Accent).
-		Padding(0, 2).
-		Bold(true)
-
-	secondaryStyle := lipgloss.NewStyle().
-		Foreground(styles.ActiveTheme().FgMid).
-		Background(styles.ActiveTheme().BgMid).
-		Padding(0, 2)
-
-	var yesBtn, noBtn string
-	if defaultIsNo {
-		yesBtn = secondaryStyle.Render(yesLabel)
-		noBtn = primaryStyle.Render(noLabel)
-	} else {
-		yesBtn = primaryStyle.Render(yesLabel)
-		noBtn = secondaryStyle.Render(noLabel)
-	}
-
+	var buttonList []string
 	btnGap := bg.Render("  ")
 
-	buttonList := []string{yesBtn, btnGap, noBtn}
-
-	if cancelLabel != "" {
-		cancelBtn := lipgloss.NewStyle().
-			Foreground(styles.ActiveTheme().FgDim).
-			Background(styles.ActiveTheme().BgMid).
-			Padding(0, 2).
-			Render(cancelLabel)
-		buttonList = append(buttonList, btnGap, cancelBtn)
+	for i, label := range buttonLabels {
+		if i > 0 {
+			buttonList = append(buttonList, btnGap)
+		}
+		if i == focusedIdx {
+			btn := lipgloss.NewStyle().
+				Foreground(styles.ActiveTheme().FgBright).
+				Background(styles.ActiveTheme().Accent).
+				Padding(0, 2).
+				Bold(true).
+				Render("▸ " + label)
+			buttonList = append(buttonList, btn)
+		} else {
+			btn := lipgloss.NewStyle().
+				Foreground(styles.ActiveTheme().FgMid).
+				Background(styles.ActiveTheme().BgMid).
+				Padding(0, 2).
+				Render("  " + label)
+			buttonList = append(buttonList, btn)
+		}
 	}
 
 	buttons := lipgloss.JoinHorizontal(lipgloss.Top, buttonList...)
@@ -581,17 +572,17 @@ func (m Model) renderResumeConfirmation() string {
 		body = styles.Truncate(m.pendingPlayback.Title, 38)
 	}
 
-	return renderConfirmDialog(m.Width, m.Height,
-		title, body,
-		"Y  Resume", "N  Start Over", "Esc  Cancel", false)
+	buttons := []string{styles.RenderKeyHint("Y", "Resume"), styles.RenderKeyHint("N", "Start Over"), styles.RenderKeyHint("Esc", "Cancel")}
+	return renderConfirmDialog(m.Width, m.Height, title, body, buttons, m.confirmFocusedIdx)
 }
 
 // renderLogoutConfirmation renders the logout confirmation modal
 func (m Model) renderLogoutConfirmation() string {
+	buttons := []string{styles.RenderKeyHint("Y", "Yes"), styles.RenderKeyHint("N", "No")}
 	return renderConfirmDialog(m.Width, m.Height,
 		"Log Out?",
 		"This will clear your credentials,\nserver URL, and all cached data.",
-		"Y  Yes", "N  No", "", false)
+		buttons, m.confirmFocusedIdx)
 }
 
 // renderDeleteConfirmation renders the deletion confirmation modal
@@ -601,8 +592,9 @@ func (m Model) renderDeleteConfirmation() string {
 		itemTitle = styles.Truncate(m.pendingDelete.GetTitle(), 38)
 	}
 
+	buttons := []string{styles.RenderKeyHint("Y", "Yes"), styles.RenderKeyHint("N", "No"), styles.RenderKeyHint("Esc", "Cancel")}
 	return renderConfirmDialog(m.Width, m.Height,
 		"Delete Local File?",
 		fmt.Sprintf("Are you sure you want to delete\n%s\nfrom the server? This action cannot be undone.", itemTitle),
-		"Y  Yes", "N  No", "Esc  Cancel", true)
+		buttons, m.confirmFocusedIdx)
 }
