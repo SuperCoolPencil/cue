@@ -29,10 +29,9 @@ type GlobalSearch struct {
 // NewGlobalSearch creates a new global search component
 func NewGlobalSearch() GlobalSearch {
 	ti := textinput.New()
-	ti.Placeholder = "Search..."
+	ti.Placeholder = "Type to search movies, TV shows, episodes..."
 	ti.CharLimit = 100
-	ti.Width = 40
-	ti.Prompt = "/ "
+	ti.Prompt = "🔍 "
 	ti.PromptStyle = styles.AccentStyle()
 	ti.TextStyle = lipgloss.NewStyle().Foreground(styles.ActiveTheme().FgBright)
 	ti.PlaceholderStyle = styles.DimStyle()
@@ -47,7 +46,7 @@ func (o *GlobalSearch) Show() {
 	o.visible = true
 	o.input.Focus()
 	o.input.SetValue("")
-	o.input.Placeholder = "Type to search..."
+	o.input.Placeholder = "Type to search movies, TV shows, episodes..."
 	o.input.Prompt = "🔍 "
 	o.results = nil
 	o.cursor = 0
@@ -79,7 +78,15 @@ func (o *GlobalSearch) SetResults(results []search.FilterResult) {
 func (o *GlobalSearch) SetSize(width, height int) {
 	o.width = width
 	o.height = height
-	o.input.Width = width - 10
+
+	modalWidth := (width * 65) / 100
+	if modalWidth < 50 {
+		modalWidth = 50
+	}
+	if modalWidth > 110 {
+		modalWidth = 110
+	}
+	o.input.Width = modalWidth - 10
 }
 
 // Query returns the current search query
@@ -178,39 +185,81 @@ func (o GlobalSearch) View() string {
 		return ""
 	}
 
-	// Modal dimensions
-	modalWidth := o.width * 2 / 3
-	if modalWidth < 40 {
-		modalWidth = 40
+	// Dynamic modal dimensions based on terminal width and height
+	modalWidth := (o.width * 65) / 100
+	if modalWidth < 50 {
+		modalWidth = 50
 	}
-	if modalWidth > 80 {
-		modalWidth = 80
+	if modalWidth > 110 {
+		modalWidth = 110
 	}
-	maxResults := 10
+	contentWidth := modalWidth - 4
+
+	maxResults := (o.height - 12) / 2
+	if maxResults < 5 {
+		maxResults = 5
+	}
+	if maxResults > 12 {
+		maxResults = 12
+	}
 
 	var b strings.Builder
+	theme := styles.ActiveTheme()
 
-	// Title
-	b.WriteString("Global Search")
+	// Title / Header
+	header := lipgloss.NewStyle().
+		Foreground(theme.Accent).
+		Bold(true).
+		Render("GLOBAL SEARCH")
+	b.WriteString(header)
 	b.WriteString("\n\n")
 
-	// Input field
-	b.WriteString(o.input.View())
+	// Input box container (sleek inner panel)
+	inputBox := lipgloss.NewStyle().
+		Background(theme.BgMid).
+		Foreground(theme.FgBright).
+		Padding(0, 1).
+		Width(contentWidth).
+		Render(o.input.View())
+	b.WriteString(inputBox)
 	b.WriteString("\n\n")
 
-	// Results
+	// Results area
 	if o.loading {
-		b.WriteString(styles.SpinnerStyle().Render("Searching..."))
+		spinner := styles.SpinnerStyle().Render("⠋ Searching library...")
+		b.WriteString(lipgloss.NewStyle().Width(contentWidth).Align(lipgloss.Center).Render(spinner))
+		b.WriteString("\n")
 	} else {
-		o.renderResults(&b, modalWidth, maxResults)
+		o.renderResults(&b, contentWidth, maxResults)
 	}
 
-	// Center the modal
+	b.WriteString("\n")
+
+	// Footer bar with shortcuts & count
+	footerStyle := lipgloss.NewStyle().Width(contentWidth)
+	hints := styles.DimStyle().Render("↑/↓ navigate  •  enter select  •  esc cancel")
+	var countStr string
+	if len(o.results) > 0 {
+		countStr = styles.DimStyle().Render(fmt.Sprintf("%d of %d", o.cursor+1, len(o.results)))
+	}
+
+	gapLen := contentWidth - lipgloss.Width(hints) - lipgloss.Width(countStr)
+	if gapLen < 1 {
+		gapLen = 1
+	}
+	footerRow := hints + strings.Repeat(" ", gapLen) + countStr
+	b.WriteString(footerStyle.Render(footerRow))
+
+	// Outer Modal Box
 	content := lipgloss.NewStyle().
-		Width(modalWidth - 4).
+		Width(contentWidth).
 		Render(b.String())
 
-	modal := styles.ModalStyle().
+	modal := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(theme.Accent).
+		Padding(1, 2).
+		Background(theme.BgDark).
 		Width(modalWidth).
 		Render(content)
 
@@ -224,85 +273,70 @@ func (o GlobalSearch) View() string {
 	)
 }
 
-// highlightMatches renders text with matched characters highlighted
-// Uses ANSI codes directly to avoid lipgloss padding issues
+// highlightMatches renders text with matched characters highlighted cleanly using theme styles
 func highlightMatches(text string, matchedIndexes []int, selected bool) string {
+	if len(text) == 0 {
+		return ""
+	}
 	if len(matchedIndexes) == 0 {
 		if selected {
-			return styles.SelectedItemStyle().Render(text)
+			return lipgloss.NewStyle().Foreground(styles.ActiveTheme().FgBright).Background(styles.ActiveTheme().BgMid).Render(text)
 		}
-		return styles.NormalItemStyle().Render(text)
+		return lipgloss.NewStyle().Foreground(styles.ActiveTheme().FgMid).Render(text)
 	}
 
-	// Create a set of matched indexes for O(1) lookup
-	matchSet := make(map[int]bool)
+	matchSet := make(map[int]bool, len(matchedIndexes))
 	for _, idx := range matchedIndexes {
 		matchSet[idx] = true
 	}
 
-	// ANSI escape codes for inline styling (no padding)
-	// Orange/bold for matches, gray for normal text
-	const (
-		reset      = "\033[0m"
-		orange     = "\033[38;5;208m" // PlexOrange approximate
-		orangeBold = "\033[38;5;208;1m"
-		gray       = "\033[38;5;250m" // LightGray approximate
-		white      = "\033[38;5;255m"
-		bgSlate    = "\033[48;5;238m" // SlateLight approximate
-	)
+	theme := styles.ActiveTheme()
+	var normalStyle, matchStyle lipgloss.Style
 
-	var matchStart, matchEnd, normalStart, normalEnd string
 	if selected {
-		// Selected: white bg for normal, orange+bold+bg for match
-		normalStart = white + bgSlate
-		normalEnd = reset
-		matchStart = orangeBold + bgSlate
-		matchEnd = reset
+		normalStyle = lipgloss.NewStyle().Foreground(theme.FgBright).Background(theme.BgMid)
+		matchStyle = lipgloss.NewStyle().Foreground(theme.Accent).Background(theme.BgMid).Bold(true)
 	} else {
-		// Not selected: gray for normal, orange+bold for match
-		normalStart = gray
-		normalEnd = reset
-		matchStart = orangeBold
-		matchEnd = reset
+		normalStyle = lipgloss.NewStyle().Foreground(theme.FgMid)
+		matchStyle = lipgloss.NewStyle().Foreground(theme.Accent).Bold(true)
 	}
 
-	// Batch consecutive characters with the same style
-	var result strings.Builder
 	runes := []rune(text)
+	var result strings.Builder
 	i := 0
 	for i < len(runes) {
 		isMatch := matchSet[i]
 
-		// Collect consecutive characters with the same match state
 		var batch strings.Builder
 		for i < len(runes) && matchSet[i] == isMatch {
 			batch.WriteRune(runes[i])
 			i++
 		}
 
-		// Render the batch with ANSI codes
 		if isMatch {
-			result.WriteString(matchStart)
-			result.WriteString(batch.String())
-			result.WriteString(matchEnd)
+			result.WriteString(matchStyle.Render(batch.String()))
 		} else {
-			result.WriteString(normalStart)
-			result.WriteString(batch.String())
-			result.WriteString(normalEnd)
+			result.WriteString(normalStyle.Render(batch.String()))
 		}
 	}
 
 	return result.String()
 }
 
-// renderResults renders the search results
-func (o GlobalSearch) renderResults(b *strings.Builder, modalWidth, maxResults int) {
+// renderResults renders the search results list
+func (o GlobalSearch) renderResults(b *strings.Builder, contentWidth, maxResults int) {
+	theme := styles.ActiveTheme()
+
 	if len(o.results) == 0 && o.input.Value() != "" {
-		b.WriteString(styles.DimStyle().Render("No matches found"))
+		emptyMsg := styles.DimStyle().Render(fmt.Sprintf("No matches found for %q", o.input.Value()))
+		b.WriteString(lipgloss.NewStyle().Width(contentWidth).Align(lipgloss.Center).Render(emptyMsg))
+		b.WriteString("\n")
 		return
 	}
 	if len(o.results) == 0 {
-		// Don't show anything when empty - placeholder already guides the user
+		placeholderMsg := styles.DimStyle().Render("Start typing to search movies, TV shows, and episodes...")
+		b.WriteString(lipgloss.NewStyle().Width(contentWidth).Align(lipgloss.Center).Render(placeholderMsg))
+		b.WriteString("\n")
 		return
 	}
 
@@ -317,46 +351,84 @@ func (o GlobalSearch) renderResults(b *strings.Builder, modalWidth, maxResults i
 
 		var line strings.Builder
 
-		// Type badge with library context
+		// Cursor indicator
+		if selected {
+			line.WriteString(lipgloss.NewStyle().Foreground(theme.Accent).Background(theme.BgMid).Bold(true).Render("▸ "))
+		} else {
+			line.WriteString("  ")
+		}
+
+		// Type badge
+		var badgeStr string
 		switch result.Type {
 		case domain.MediaTypeMovie:
-			line.WriteString(styles.DimBadgeStyle().Render("MOV"))
+			badgeStr = "MOVIE"
 		case domain.MediaTypeShow:
-			line.WriteString(styles.DimBadgeStyle().Render("SHOW"))
+			badgeStr = "SHOW"
 		case domain.MediaTypeEpisode:
-			line.WriteString(styles.DimBadgeStyle().Render("EP"))
+			badgeStr = "EPISODE"
+		default:
+			badgeStr = "ITEM"
+		}
+
+		if selected {
+			line.WriteString(lipgloss.NewStyle().
+				Foreground(theme.FgBright).
+				Background(theme.Accent).
+				Bold(true).
+				Padding(0, 1).
+				Render(badgeStr))
+		} else {
+			line.WriteString(lipgloss.NewStyle().
+				Foreground(theme.FgMid).
+				Background(theme.BgMid).
+				Padding(0, 1).
+				Render(badgeStr))
 		}
 		line.WriteString(" ")
 
 		// Build display title
 		title := result.Title
 		matchedIndexes := result.MatchedIndexes
-		maxTitleWidth := modalWidth - 25
+		maxTitleWidth := contentWidth - 18
+		if maxTitleWidth < 15 {
+			maxTitleWidth = 15
+		}
+
 		switch result.Type {
 		case domain.MediaTypeEpisode:
-			// For episodes, show: ShowTitle - S01E01 Title
 			if item, ok := result.Item.(*domain.MediaItem); ok {
 				title = fmt.Sprintf("%s - %s %s", item.ShowTitle, item.EpisodeCode(), item.Title)
-				// Reset matched indexes since the title format changed
 				matchedIndexes = nil
 			}
 		case domain.MediaTypeMovie:
-			// For movies, show: Title (Year)
 			if item, ok := result.Item.(*domain.MediaItem); ok && item.Year > 0 {
 				title = fmt.Sprintf("%s (%d)", item.Title, item.Year)
-				// Matched indexes still apply to the title portion
 			}
 		}
 		title = styles.Truncate(title, maxTitleWidth)
 
-		// Apply highlighting to the title
+		// Title with match highlighting
 		line.WriteString(highlightMatches(title, matchedIndexes, selected))
 
-		b.WriteString(line.String())
+		// Full-width line wrapping with consistent background on selection
+		rowStr := line.String()
+		rowWidth := lipgloss.Width(rowStr)
+		if rowWidth < contentWidth {
+			padding := strings.Repeat(" ", contentWidth-rowWidth)
+			if selected {
+				rowStr += lipgloss.NewStyle().Background(theme.BgMid).Render(padding)
+			} else {
+				rowStr += padding
+			}
+		}
+
+		b.WriteString(rowStr)
 		b.WriteString("\n")
 	}
 
 	if remaining := len(o.results) - (o.offset + displayCount); remaining > 0 {
-		b.WriteString(styles.DimStyle().Render(fmt.Sprintf("... and %d more", remaining)))
+		b.WriteString(styles.DimStyle().Render(fmt.Sprintf("  ... and %d more", remaining)))
+		b.WriteString("\n")
 	}
 }
