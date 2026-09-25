@@ -74,6 +74,48 @@ func (m InputModal) Update(msg tea.Msg) (InputModal, tea.Cmd, bool) {
 	return m, cmd, false
 }
 
+// HandleMouse handles mouse input for the input modal.
+// Returns (modal, handled, dismissed)
+func (m InputModal) HandleMouse(msg tea.MouseMsg, screenW, screenH int) (InputModal, bool, bool) {
+	if !m.visible {
+		return m, false, false
+	}
+
+	// Content is 36 wide; Padding(1,2) adds 4 columns and 2 rows, border adds 2 of each.
+	const modalWidth = 36 + 4 + 2
+	modalHeight := 3 + 2 + 2 // title(1) + spacer(1) + input(1) + padding(2) + border(2)
+	if modalHeight > screenH {
+		modalHeight = screenH
+	}
+
+	modalX := (screenW - modalWidth) / 2
+	if modalX < 0 {
+		modalX = 0
+	}
+	modalY := (screenH - modalHeight) / 2
+	if modalY < 0 {
+		modalY = 0
+	}
+
+	insideModal := msg.X >= modalX && msg.X < modalX+modalWidth &&
+		msg.Y >= modalY && msg.Y < modalY+modalHeight
+
+	switch {
+	case msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft:
+		if !insideModal {
+			m.Hide()
+			return m, true, true
+		}
+		// Inside modal: let textinput handle focus
+		return m, true, false
+	case msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonRight:
+		m.Hide()
+		return m, true, true
+	}
+
+	return m, false, false
+}
+
 // View renders the input modal
 func (m InputModal) View() string {
 	if !m.visible {
