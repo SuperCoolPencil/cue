@@ -89,14 +89,17 @@ Cue uses the Kitty graphics protocol when running directly in Kitty. Other termi
 | `Hide watched` | Toggle visibility of watched items in Config menu |
 | `L` | Logout |
 | `?` | Show help |
-| `q` | Quit or go back |
+| `q` | Quit |
+| `Esc` | Cancel, go back, or quit from the library root |
 
 ### Intro and Outro Skipping
 
-In mpv, Cue displays “Press x to skip intro/outro” while a known segment plays.
+In mpv, manual mode displays the configured skip key while a known segment plays.
 Press `Ctrl+x` to skip, or `Alt+x` to undo. The keys are configurable under `player.skip`;
 user mpv keybindings take precedence. The Config menu cycles intro/outro skipping
 through off, manual, and auto for subsequent playback sessions.
+It exposes skip/undo keys, startup analysis, scan limits, and chapter generation,
+along with server, player, UI, logging, and profile settings. Credentials are masked.
 
 Cue uses Plex intro/credits markers, Jellyfin media segments (including those
 published by compatible Intro Skipper plugins), and explicitly named embedded
@@ -120,7 +123,7 @@ muxer (`ffmpeg -h muxer=chromaprint`). Analysis fingerprints the beginning and e
 of each episode and caches results by server, media source, and revision. Remote
 analysis can transfer substantial media data. Startup analysis can continue while
 you watch; it never blocks playback or library refresh. Repeated audio is only a candidate intro/outro: these experimental
-results always require a manual skip, even in auto mode. Content after a bounded
+results follow your intro/outro mode: auto skips them, manual prompts, and off disables skipping. Content after a bounded
 outro remains playable.
 
 Per-show `settings.json`, analysis JSON files, and generated Lua scripts share

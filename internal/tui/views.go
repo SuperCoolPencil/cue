@@ -2,9 +2,11 @@ package tui
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 
+	"github.com/SuperCoolPencil/cue/internal/config"
 	"github.com/SuperCoolPencil/cue/internal/domain"
 	"github.com/SuperCoolPencil/cue/internal/tui/components"
 	"github.com/SuperCoolPencil/cue/internal/tui/styles"
@@ -12,6 +14,7 @@ import (
 )
 
 const posterPlacementMarker = "\x00"
+const configInfoHeight = 5 // Two borders, title, description, and action hint.
 
 // RenderSpinner renders a loading spinner
 func RenderSpinner(frame int) string {
@@ -227,6 +230,11 @@ func (m Model) renderPosterPreview(width, height int) string {
 // renderSplitColumn renders a content column as a vertical split:
 // top = list (listHeight), bottom = info pane for selected item (infoHeight).
 func (m Model) renderSplitColumn(col *components.ListColumn, colWidth, listHeight, infoHeight int) string {
+	if col.ContentID() == configLibraryID {
+		col.SetSize(colWidth, listHeight+infoHeight-configInfoHeight)
+		col.Inspector().SetSize(colWidth, configInfoHeight)
+		return lipgloss.JoinVertical(lipgloss.Left, col.View(), m.renderConfigInfo(col, colWidth))
+	}
 	col.SetSize(colWidth, listHeight)
 	listView := col.View()
 
@@ -289,6 +297,51 @@ func (m Model) renderSplitColumn(col *components.ListColumn, colWidth, listHeigh
 	infoView := insp.View()
 
 	return lipgloss.JoinVertical(lipgloss.Left, listView, infoView)
+}
+
+// renderConfigInfo keeps setting help to two lines below the title.
+func (m Model) renderConfigInfo(col *components.ListColumn, width int) string {
+	id := ""
+	switch item := col.SelectedItem().(type) {
+	case domain.Library:
+		id = item.ID
+	case *domain.Library:
+		id = item.ID
+	}
+	description, action := "Configuration", "Enter to edit"
+	for _, setting := range configSettings {
+		if setting.id != id {
+			continue
+		}
+		description = setting.label
+		if strings.HasPrefix(setting.path, "server.") || strings.HasPrefix(setting.path, "logging.") || strings.HasPrefix(setting.path, "player.") && !strings.HasPrefix(setting.path, "player.skip.") {
+			description += " · restart Cue after saving"
+		}
+		if configField(config.DefaultConfig(), setting.path).Kind() == reflect.Bool {
+			action = "Enter to toggle"
+		}
+		if setting.path == "player.skip.intro" || setting.path == "player.skip.outro" {
+			description = "Auto skips all detected segments; manual shows a prompt; off disables skipping."
+			action = "Enter to cycle off / manual / auto"
+		}
+		if setting.path == "player.skip.intro_window_seconds" {
+			description = "Scan the first 25% of an episode, up to this many seconds (0 = 600; 30–900)."
+		}
+		if setting.path == "profiles" {
+			action = "Enter to browse profiles"
+		}
+		break
+	}
+	if id == "__config_os__" {
+		description, action = "Current operating system", "Read only"
+	}
+	contentWidth := max(1, width-4)
+	content := styles.AccentStyle().Render("Info") + "\n" + styles.DimStyle().Render(styles.Truncate(description, contentWidth)) + "\n" + styles.SubtitleStyle().Render(styles.Truncate(action, contentWidth))
+	border := styles.InactiveBorder()
+	if col.Inspector().Focused {
+		border = styles.ActiveBorder()
+	}
+	return border.Width(width-2).Height(configInfoHeight-2).Padding(0, 1).Render(content)
 }
 
 // renderFooter renders a single-line minimal footer
@@ -429,7 +482,7 @@ func (m Model) renderHelp() string {
 		{"q", "Quit"},
 		{"L", "Logout"},
 		{"?", "This help"},
-		{"Esc", "Close / Cancel"},
+		{"Esc", "Cancel / Back / Quit at root"},
 	}
 
 	keyW := 12

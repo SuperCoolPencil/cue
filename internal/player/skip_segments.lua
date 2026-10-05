@@ -57,7 +57,7 @@ local function update(_, pos)
         if options[s.kind] ~= 'off' and pos * 1000 >= s.start_ms and pos * 1000 < s.end_ms then active = s; break end
     end
     if not active or pending then clear_prompt(); return end
-    if options[active.kind] == 'auto' and not active.manual_only and not suppressed[active] then skip(); return end
+    if options[active.kind] == 'auto' and not suppressed[active] then skip(); return end
     if not bound then mp.add_key_binding(options.key, 'cue-skip', skip); bound = true end
     local label = effective_key() and ('Press ' .. options.key .. ' to skip ') or 'Skip available: '
     label = label .. active.kind

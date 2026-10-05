@@ -358,6 +358,9 @@ func (m *Model) drillSelected() *drillResult {
 }
 
 func (m *Model) drillVirtualLibrary(v domain.Library, cursor int) *drillResult {
+	if m.openConfigSetting(v.ID) {
+		return &drillResult{AwaitKind: AwaitNone}
+	}
 	var items interface{}
 	title := v.Name
 	contentID := v.ID

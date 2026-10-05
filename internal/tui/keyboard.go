@@ -275,7 +275,7 @@ func (m Model) handleHelp() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// handleEscape clears active filter or cancels nav plan
+// handleEscape cancels the current interaction, goes back, or exits at root.
 func (m Model) handleEscape() (tea.Model, tea.Cmd) {
 	if top := m.ColumnStack.Top(); top != nil && top.IsFiltering() {
 		top.ClearFilter()
@@ -286,7 +286,10 @@ func (m Model) handleEscape() (tea.Model, tea.Cmd) {
 		m.StatusMsg = "Navigation cancelled"
 		return m, ClearStatusCmd(2 * time.Second)
 	}
-	return m, nil
+	if m.ColumnStack != nil && m.ColumnStack.CanGoBack() {
+		return m.handleBack()
+	}
+	return m, tea.Quit
 }
 
 // handleFilter toggles filter mode in the current column
@@ -869,8 +872,22 @@ func (m Model) handleInputModalInput(msg tea.KeyMsg) (bool, Model, tea.Cmd) {
 	var submitted bool
 
 	m.InputModal, cmd, submitted = m.InputModal.Update(msg)
+	if !m.InputModal.IsVisible() {
+		m.configInputPath = ""
+	}
 	if submitted {
 		title := m.InputModal.Value()
+		if m.configInputPath != "" {
+			if err := m.saveConfigInput(m.configInputPath, title); err != nil {
+				m.StatusMsg = err.Error()
+				m.StatusIsErr = true
+				m.InputModal.SetError(err.Error())
+				return true, m, nil
+			}
+			m.configInputPath = ""
+			m.InputModal.Hide()
+			return true, m, nil
+		}
 		m.InputModal.Hide()
 		if title != "" {
 			return true, m, CreatePlaylistCmd(m.PlaylistService, title, []string{})

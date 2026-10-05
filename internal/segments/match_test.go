@@ -27,7 +27,7 @@ func TestDetectShiftedRecurringSequences(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i, segments := range got {
-		if len(segments) != 1 || !segments[0].ManualOnly {
+		if len(segments) != 1 || segments[0].ManualOnly {
 			t.Fatalf("episode %d: %+v", i, segments)
 		}
 		want := int64((float64(50+i*80)*FrameSeconds - boundaryMargin) * 1000)

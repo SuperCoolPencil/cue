@@ -104,7 +104,7 @@ func DefaultKeyMap() KeyMap {
 		),
 		Escape: key.NewBinding(
 			key.WithKeys("esc"),
-			key.WithHelp("esc", "cancel/clear"),
+			key.WithHelp("esc", "cancel/back/quit"),
 		),
 		Filter: key.NewBinding(
 			key.WithKeys("/"),

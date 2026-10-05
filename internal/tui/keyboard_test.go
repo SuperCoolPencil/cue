@@ -49,6 +49,44 @@ func TestResumeConfirmationCancel(t *testing.T) {
 	}
 }
 
+func TestEscapeQuitsAtLibraryRoot(t *testing.T) {
+	model := Model{State: StateBrowsing, ColumnStack: NewColumnStack()}
+	model.ColumnStack.Reset(components.NewLibraryColumn(nil))
+	_, cmd := model.handleKeyMsg(tea.KeyMsg{Type: tea.KeyEsc})
+	if cmd == nil {
+		t.Fatal("Esc did not exit at root")
+	}
+	if _, ok := cmd().(tea.QuitMsg); !ok {
+		t.Fatal("Esc did not return QuitMsg")
+	}
+}
+
+func TestEscapeGoesBackFromConfig(t *testing.T) {
+	model := Model{State: StateBrowsing, ColumnStack: NewColumnStack(), Inspector: components.NewInspector()}
+	model.ColumnStack.Reset(components.NewLibraryColumn(nil))
+	model.ColumnStack.Push(components.NewListColumn(components.ColumnTypeLibraries, "Config"), 0)
+	updated, cmd := model.handleKeyMsg(tea.KeyMsg{Type: tea.KeyEsc})
+	if updated.(Model).ColumnStack.Len() != 1 {
+		t.Fatal("Esc did not go back")
+	}
+	if cmd != nil {
+		if _, quit := cmd().(tea.QuitMsg); quit {
+			t.Fatal("Esc exited from a nested view")
+		}
+	}
+}
+
+func TestEscapeClearsFilterBeforeExiting(t *testing.T) {
+	model := Model{State: StateBrowsing, ColumnStack: NewColumnStack()}
+	col := components.NewLibraryColumn(nil)
+	model.ColumnStack.Reset(col)
+	col.ToggleFilter()
+	_, cmd := model.handleEscape()
+	if cmd != nil || col.IsFiltering() {
+		t.Fatal("Esc should clear the filter before exiting")
+	}
+}
+
 func TestShiftXShowsDeleteConfirmationForMedia(t *testing.T) {
 	col := components.NewListColumn(components.ColumnTypeMovies, "Movies")
 	col.SetItems([]*domain.MediaItem{{ID: "m1", Title: "Movie", Type: domain.MediaTypeMovie}})

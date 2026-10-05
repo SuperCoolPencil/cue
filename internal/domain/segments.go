@@ -8,7 +8,7 @@ type SkipSegment struct {
 	StartMs    int64  `json:"start_ms"`
 	EndMs      int64  `json:"end_ms"`
 	Origin     string `json:"origin"`
-	ManualOnly bool   `json:"manual_only,omitempty"`
+	ManualOnly bool   `json:"manual_only,omitempty"` // Legacy cache field; playback follows the configured mode.
 }
 
 // ValidSkipSegments discards invalid and overlapping intervals conservatively.

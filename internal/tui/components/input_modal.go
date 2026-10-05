@@ -9,9 +9,10 @@ import (
 
 // InputModal is a simple text input modal
 type InputModal struct {
-	visible bool
-	title   string
-	input   textinput.Model
+	visible      bool
+	title        string
+	input        textinput.Model
+	errorMessage string
 }
 
 // NewInputModal creates a new input modal
@@ -31,11 +32,28 @@ func NewInputModal() InputModal {
 
 // Show displays the modal with a title
 func (m *InputModal) Show(title string) {
+	m.ShowValue(title, "", false)
+}
+
+// ShowValue opens an editor with the current value, masking credentials.
+func (m *InputModal) ShowValue(title, value string, secret bool) {
+	m.errorMessage = ""
 	m.visible = true
 	m.title = title
-	m.input.SetValue("")
+	m.input.CharLimit = 4096
+	m.input.Placeholder = "Enter value..."
+	m.input.EchoMode = textinput.EchoNormal
+	if secret {
+		m.input.EchoMode = textinput.EchoPassword
+		m.input.EchoCharacter = '*'
+	}
+	m.input.SetValue(value)
+	m.input.CursorEnd()
 	m.input.Focus()
 }
+
+// SetError displays validation feedback without discarding the edited value.
+func (m *InputModal) SetError(message string) { m.errorMessage = message }
 
 // Hide dismisses the modal
 func (m *InputModal) Hide() {
@@ -70,6 +88,7 @@ func (m InputModal) Update(msg tea.Msg) (InputModal, tea.Cmd, bool) {
 	}
 
 	var cmd tea.Cmd
+	m.errorMessage = ""
 	m.input, cmd = m.input.Update(msg)
 	return m, cmd, false
 }
@@ -144,6 +163,13 @@ func (m InputModal) View() string {
 		spacer,
 		inputStyle.Render(m.input.View()),
 	)
+	if m.errorMessage != "" {
+		content = lipgloss.JoinVertical(lipgloss.Left,
+			titleStyle.Render(m.title),
+			inputStyle.Foreground(styles.ActiveTheme().Accent).Render(styles.Truncate(m.errorMessage, modalWidth)),
+			inputStyle.Render(m.input.View()),
+		)
+	}
 
 	modal := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).

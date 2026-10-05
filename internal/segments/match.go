@@ -11,7 +11,7 @@ import (
 // Chromaprint algorithm 1: 1365 samples per frame at 11025 Hz. The
 // filtering/classifier delay spans ~2.6s. Leading fingerprints straddle the
 // transition into an opening, so recover its onset from the first stable match.
-// Suggestions remain manual-only until broader labeled-media validation.
+// The player's configured mode decides whether matches skip automatically.
 const FrameSeconds = 1365.0 / 11025.0
 const boundaryMargin = 3.0
 const maxFingerprintDistance = 6
@@ -146,7 +146,7 @@ func Detect(ctx context.Context, fingerprints [][]uint32, durations []int64, off
 			if end-start < 20000 {
 				continue
 			}
-			out[i] = append(out[i], domain.SkipSegment{Kind: kind, StartMs: start, EndMs: end, Origin: Version, ManualOnly: true})
+			out[i] = append(out[i], domain.SkipSegment{Kind: kind, StartMs: start, EndMs: end, Origin: Version})
 		}
 		out[i] = domain.ValidSkipSegments(out[i], durations[i])
 	}

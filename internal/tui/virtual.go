@@ -5,7 +5,6 @@ import (
 	"runtime"
 
 	"github.com/SuperCoolPencil/cue/internal/domain"
-	"github.com/SuperCoolPencil/cue/internal/tui/styles"
 )
 
 const (
@@ -35,38 +34,7 @@ func (m Model) profileEntries() []domain.Library {
 }
 
 func (m Model) configEntries() []domain.Library {
-	showWatch := "off"
-	showCounts := "off"
-	hideWatched := "off"
-	autoplay := "off"
-	introSkip, outroSkip := "manual", "manual"
-	if m.AppConfig != nil {
-		introSkip = m.AppConfig.Player.Skip.Intro
-		outroSkip = m.AppConfig.Player.Skip.Outro
-	}
-	if m.UIConfig.ShowWatchStatus {
-		showWatch = "on"
-	}
-	if m.UIConfig.ShowLibraryCounts {
-		showCounts = "on"
-	}
-	if m.UIConfig.HideWatched {
-		hideWatched = "on"
-	}
-	if m.UIConfig.Autoplay {
-		autoplay = "on"
-	}
-	return []domain.Library{
-		{ID: "__config_player__", Name: "Player: " + m.playerName(), Type: "config"},
-		{ID: "__config_theme__", Name: "Theme: " + styles.ActiveTheme().Name, Type: "config"},
-		{ID: "__config_watch__", Name: "Watch indicators: " + showWatch, Type: "config"},
-		{ID: "__config_counts__", Name: "Library counts: " + showCounts, Type: "config"},
-		{ID: "__config_hide_watched__", Name: "Hide watched: " + hideWatched, Type: "config"},
-		{ID: "__config_autoplay__", Name: "Autoplay: " + autoplay, Type: "config"},
-		{ID: "__config_skip_intro__", Name: "Skip intros: " + introSkip, Type: "config"},
-		{ID: "__config_skip_outro__", Name: "Skip outros: " + outroSkip, Type: "config"},
-		{ID: "__config_os__", Name: "Platform: " + runtime.GOOS, Type: "config"},
-	}
+	return append(m.settingsEntries(), domain.Library{ID: "__config_os__", Name: "Platform: " + runtime.GOOS, Type: "config"})
 }
 
 func (m Model) cacheEntries() []domain.Library {

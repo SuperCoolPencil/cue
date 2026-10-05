@@ -88,6 +88,9 @@ func (m *Model) updateLayout() {
 		if contentCol.ColumnType() == components.ColumnTypeEpisodes || contentCol.ColumnType() == components.ColumnTypeSeasonEpisodes {
 			h = (55 * contentHeight) / 100
 		}
+		if contentCol.ContentID() == configLibraryID {
+			h = contentHeight - configInfoHeight
+		}
 		// Active column is split in View(), so updateLayout should use appropriate height
 		m.ColumnStack.Get(1).SetSize(layout.activeWidth, h)
 
@@ -114,6 +117,9 @@ func (m *Model) updateLayout() {
 		ah := listHeight
 		if activeCol.ColumnType() == components.ColumnTypeEpisodes || activeCol.ColumnType() == components.ColumnTypeSeasonEpisodes {
 			ah = (55 * contentHeight) / 100
+		}
+		if activeCol.ContentID() == configLibraryID {
+			ah = contentHeight - configInfoHeight
 		}
 		m.ColumnStack.Get(topIdx).SetSize(layout.activeWidth, ah)
 	}

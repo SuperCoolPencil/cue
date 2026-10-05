@@ -187,3 +187,54 @@ func TestMPVLateAnalysisAndPlaylistMapping(t *testing.T) {
 		return len(a) == 0
 	})
 }
+
+func TestMPVDetectedSegmentsFollowConfiguredMode(t *testing.T) {
+	for _, kind := range []string{"intro", "outro"} {
+		for _, mode := range []string{"auto", "manual", "off"} {
+			t.Run(kind+"/"+mode, func(t *testing.T) {
+				options := config.DefaultSkipConfig()
+				options.Intro, options.Outro = mode, mode
+				// Existing detection caches include this legacy flag. Auto must
+				// also work with those without another analysis pass.
+				media := []domain.PlayableMedia{{DurationMs: 12000, Segments: []domain.SkipSegment{{Kind: kind, StartMs: 1000, EndMs: 5000, Origin: "chromaprint-v1", ManualOnly: true}}}}
+				connection := startTestMPV(t, options, media, nil)
+				mpvWait(t, func() bool {
+					chapters, _ := connection.GetProperty("chapter-list")
+					list, _ := chapters.([]interface{})
+					return len(list) == 3
+				})
+				if _, err := connection.request([]interface{}{"seek", 2, "absolute", "exact"}); err != nil {
+					t.Fatal(err)
+				}
+				if mode == "auto" {
+					mpvWait(t, func() bool { pos, _ := connection.GetTimePos(); return pos >= 4.9 && pos < 5.2 })
+					if _, err := connection.request([]interface{}{"keypress", "Alt+x"}); err != nil {
+						t.Fatal(err)
+					}
+				}
+				mpvWait(t, func() bool { pos, _ := connection.GetTimePos(); return pos >= 1.9 && pos < 2.2 })
+				// Undo must not immediately trigger another automatic skip.
+				time.Sleep(150 * time.Millisecond)
+				pos, err := connection.GetTimePos()
+				if err != nil || pos < 1.9 || pos > 2.2 {
+					t.Fatalf("mode=%s final position=%v err=%v", mode, pos, err)
+				}
+			})
+		}
+	}
+}
+
+func TestMPVAutoSkipsLateCachedDetection(t *testing.T) {
+	cache := filepath.Join(t.TempDir(), "analysis.json")
+	options := config.DefaultSkipConfig()
+	options.Intro = "auto"
+	connection := startTestMPV(t, options, []domain.PlayableMedia{{DurationMs: 12000, SegmentFile: cache}}, nil)
+	if _, err := connection.request([]interface{}{"seek", 2, "absolute", "exact"}); err != nil {
+		t.Fatal(err)
+	}
+	mpvWait(t, func() bool { pos, _ := connection.GetTimePos(); return pos >= 1.9 && pos < 2.2 })
+	if err := os.WriteFile(cache, []byte(`{"Version":"chromaprint-v1","Segments":[{"kind":"intro","start_ms":1000,"end_ms":7000,"manual_only":true}]}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	mpvWait(t, func() bool { pos, _ := connection.GetTimePos(); return pos >= 6.9 && pos < 7.2 })
+}

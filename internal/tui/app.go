@@ -212,12 +212,13 @@ type Model struct {
 	MediaClient mediaserver.MediaSource
 
 	// UI Components - Miller Columns
-	ColumnStack   *ColumnStack             // Stack of navigable list columns
-	Inspector     components.Inspector     // View projection (always shows details for middle column selection)
-	GlobalSearch  components.GlobalSearch  // Search modal
-	SortModal     components.SortModal     // Sort field selector
-	PlaylistModal components.PlaylistModal // Playlist management modal
-	InputModal    components.InputModal    // Simple text input modal
+	ColumnStack     *ColumnStack             // Stack of navigable list columns
+	Inspector       components.Inspector     // View projection (always shows details for middle column selection)
+	GlobalSearch    components.GlobalSearch  // Search modal
+	SortModal       components.SortModal     // Sort field selector
+	PlaylistModal   components.PlaylistModal // Playlist management modal
+	InputModal      components.InputModal    // Simple text input modal
+	configInputPath string                   // Setting edited by InputModal; empty for playlist creation.
 
 	// Data
 	Libraries []domain.Library
@@ -1162,6 +1163,7 @@ func (m Model) handleMouseMsg(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		m.InputModal, handled, dismissed = m.InputModal.HandleMouse(msg, m.Width, m.Height)
 		if dismissed {
 			m.InputModal.Hide()
+			m.configInputPath = ""
 		}
 		if handled {
 			return m, nil

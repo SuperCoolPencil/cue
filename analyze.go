@@ -49,6 +49,6 @@ func runAnalyze(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, err)
 		return 1
 	}
-	fmt.Fprintf(stdout, "Saved %d manual skip suggestions. Playback will use them for the same media revision.\n", count)
+	fmt.Fprintf(stdout, "Saved %d skip segments. Playback will use your configured skip mode for the same media revision.\n", count)
 	return 0
 }
