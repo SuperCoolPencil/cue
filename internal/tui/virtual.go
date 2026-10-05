@@ -39,7 +39,6 @@ func (m Model) configEntries() []domain.Library {
 	showCounts := "off"
 	hideWatched := "off"
 	autoplay := "off"
-	playNextOnSelect := "off"
 	introSkip, outroSkip := "manual", "manual"
 	if m.AppConfig != nil {
 		introSkip = m.AppConfig.Player.Skip.Intro
@@ -57,9 +56,6 @@ func (m Model) configEntries() []domain.Library {
 	if m.UIConfig.Autoplay {
 		autoplay = "on"
 	}
-	if m.UIConfig.PlayNextOnSelect {
-		playNextOnSelect = "on"
-	}
 	return []domain.Library{
 		{ID: "__config_player__", Name: "Player: " + m.playerName(), Type: "config"},
 		{ID: "__config_theme__", Name: "Theme: " + styles.ActiveTheme().Name, Type: "config"},
@@ -67,7 +63,6 @@ func (m Model) configEntries() []domain.Library {
 		{ID: "__config_counts__", Name: "Library counts: " + showCounts, Type: "config"},
 		{ID: "__config_hide_watched__", Name: "Hide watched: " + hideWatched, Type: "config"},
 		{ID: "__config_autoplay__", Name: "Autoplay: " + autoplay, Type: "config"},
-		{ID: "__config_play_next_on_select__", Name: "Play next episode on select: " + playNextOnSelect, Type: "config"},
 		{ID: "__config_skip_intro__", Name: "Skip intros: " + introSkip, Type: "config"},
 		{ID: "__config_skip_outro__", Name: "Skip outros: " + outroSkip, Type: "config"},
 		{ID: "__config_os__", Name: "Platform: " + runtime.GOOS, Type: "config"},

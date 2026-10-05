@@ -133,12 +133,6 @@ func TestLoadConfigGeneratesDeviceID(t *testing.T) {
 	}
 }
 
-func TestDefaultConfigEnablesPlayNextOnSelect(t *testing.T) {
-	if !DefaultConfig().UI.PlayNextOnSelect {
-		t.Fatal("PlayNextOnSelect should be enabled by default")
-	}
-}
-
 func TestSkipConfigRoundTripAndEnv(t *testing.T) {
 	viper.Reset()
 	t.Cleanup(viper.Reset)

@@ -84,7 +84,6 @@ type UIConfig struct {
 	ShowLibraryCounts bool   `mapstructure:"show_library_counts"` // Keep library item counts visible after sync
 	HideWatched       bool   `mapstructure:"hide_watched"`        // Hide items that are already watched
 	Autoplay          bool   `mapstructure:"autoplay"`            // Automatically play the next episode
-	PlayNextOnSelect  bool   `mapstructure:"play_next_on_select"` // Play the next episode when selecting a show
 	Theme             string `mapstructure:"theme"`               // Active colour theme name
 }
 
@@ -105,7 +104,6 @@ func DefaultConfig() *Config {
 			ShowLibraryCounts: false,
 			HideWatched:       false,
 			Autoplay:          true,
-			PlayNextOnSelect:  true,
 			Theme:             "plex",
 		},
 		Logging: LoggingConfig{
@@ -159,7 +157,7 @@ func LoadConfig() (*Config, error) {
 		"server.username", "server.device_id",
 		"player.command", "player.args", "player.start_flag",
 		"player.skip.intro_window_seconds", "player.skip.analysis_at_startup", "player.skip.intro", "player.skip.outro", "player.skip.key", "player.skip.undo_key", "player.skip.chapters_when_missing",
-		"ui.show_watch_status", "ui.show_library_counts", "ui.hide_watched", "ui.autoplay", "ui.play_next_on_select",
+		"ui.show_watch_status", "ui.show_library_counts", "ui.hide_watched", "ui.autoplay",
 		"ui.theme",
 		"logging.file", "logging.level", "current_profile",
 	} {
@@ -255,7 +253,6 @@ func SaveConfig(cfg *Config) error {
 	viper.Set("ui.show_library_counts", cfg.UI.ShowLibraryCounts)
 	viper.Set("ui.hide_watched", cfg.UI.HideWatched)
 	viper.Set("ui.autoplay", cfg.UI.Autoplay)
-	viper.Set("ui.play_next_on_select", cfg.UI.PlayNextOnSelect)
 	viper.Set("ui.theme", cfg.UI.Theme)
 
 	// Set logging fields

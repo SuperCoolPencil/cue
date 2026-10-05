@@ -190,6 +190,85 @@ func (m *PlaylistModal) HandleKeyMsg(msg tea.KeyMsg) (handled bool, shouldClose 
 	return true, false, false // Consume all keys when visible
 }
 
+// HandleMouse handles mouse input for the playlist modal.
+// Returns (modal, handled, dismissed) where dismissed=true if user wants to close.
+func (m *PlaylistModal) HandleMouse(msg tea.MouseMsg, screenW, screenH int) (*PlaylistModal, bool, bool) {
+	if !m.visible {
+		return m, false, false
+	}
+
+	// Approximate modal dimensions
+	modalWidth := 40
+	if m.width > 0 && m.width < 60 {
+		modalWidth = m.width - 10
+	}
+	// Height: title(1) + blank(1) + playlists + blank(1) + create(1) + blank(1) + help(1) + padding(2) + border(2)
+	modalHeight := 1 + 1 + len(m.playlists) + 1 + 1 + 1 + 1 + 2 + 2
+	if modalHeight > screenH {
+		modalHeight = screenH
+	}
+
+	modalX := (screenW - modalWidth) / 2
+	if modalX < 0 {
+		modalX = 0
+	}
+	modalY := (screenH - modalHeight) / 2
+	if modalY < 0 {
+		modalY = 0
+	}
+
+	insideModal := msg.X >= modalX && msg.X < modalX+modalWidth &&
+		msg.Y >= modalY && msg.Y < modalY+modalHeight
+
+	totalCount := len(m.playlists) + 1 // +1 for "Create new" option
+
+	switch {
+	case msg.Button == tea.MouseButtonWheelUp:
+		if m.cursor > 0 {
+			m.cursor--
+		}
+		return m, true, false
+
+	case msg.Button == tea.MouseButtonWheelDown:
+		if m.cursor < totalCount-1 {
+			m.cursor++
+		}
+		return m, true, false
+
+	case msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonRight:
+		m.Hide()
+		return m, true, true
+
+	case msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft:
+		if insideModal {
+			// Items start after border(1)+padding(1)+title(1)+blank(1) = modalY + 4
+			itemIdx := msg.Y - modalY - 4
+			if itemIdx >= 0 && itemIdx < len(m.playlists) {
+				// Toggle playlist membership
+				playlist := m.playlists[itemIdx]
+				current := m.pending[playlist.ID]
+				m.pending[playlist.ID] = !current
+				m.cursor = itemIdx
+				return m, true, false
+			}
+			// A blank line separates the playlists from the create option.
+			if itemIdx == len(m.playlists)+1 {
+				// "Create new" option
+				m.createMode = true
+				m.newTitle.Focus()
+				m.cursor = len(m.playlists)
+				return m, true, false
+			}
+			return m, true, false
+		}
+		// Click outside modal — dismiss and close
+		m.Hide()
+		return m, true, true
+	}
+
+	return m, false, false
+}
+
 // View renders the playlist modal
 func (m *PlaylistModal) View() string {
 	if !m.visible {
