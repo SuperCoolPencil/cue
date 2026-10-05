@@ -9,10 +9,12 @@ import (
 )
 
 // Chromaprint algorithm 1: 1365 samples per frame at 11025 Hz. The
-// filtering/classifier delay spans ~2.6s. Trim matched boundaries inward;
-// suggestions are deliberately manual-only until labeled-media validation.
+// filtering/classifier delay spans ~2.6s. Leading fingerprints straddle the
+// transition into an opening, so recover its onset from the first stable match.
+// Suggestions remain manual-only until broader labeled-media validation.
 const FrameSeconds = 1365.0 / 11025.0
 const boundaryMargin = 3.0
+const maxFingerprintDistance = 6
 
 type match struct{ start, end int }
 
@@ -25,7 +27,8 @@ func diverse(fp []uint32) bool {
 }
 
 // pairMatches scans offset diagonals, allowing short fingerprint interruptions.
-// At least 90% of each candidate must match; silence fails the diversity check.
+// Allow small bit differences from audio encoding/mixing, but require at least
+// 90% of each candidate to match; silence fails the diversity check.
 func pairMatches(ctx context.Context, a, b []uint32, minFrames int) ([]match, error) {
 	var matches []match
 	for offset := -len(b) + minFrames; offset <= len(a)-minFrames; offset++ {
@@ -46,7 +49,7 @@ func pairMatches(ctx context.Context, a, b []uint32, minFrames int) ([]match, er
 			start, lastGood, good = -1, -1, 0
 		}
 		for i < len(a) && j < len(b) {
-			if bits.OnesCount32(a[i]^b[j]) <= 3 {
+			if bits.OnesCount32(a[i]^b[j]) <= maxFingerprintDistance {
 				if start < 0 {
 					start = i
 				}
@@ -134,7 +137,11 @@ func Detect(ctx context.Context, fingerprints [][]uint32, durations []int64, off
 		}
 		unique := consensusMatches(support, minFrames)
 		for _, m := range unique {
-			start := offsets[i] + int64((float64(m.start)*FrameSeconds+boundaryMargin)*1000)
+			startSeconds := float64(m.start)*FrameSeconds + boundaryMargin
+			if kind == "intro" {
+				startSeconds = max(0, float64(m.start)*FrameSeconds-boundaryMargin)
+			}
+			start := offsets[i] + int64(startSeconds*1000)
 			end := offsets[i] + int64(float64(m.end)*FrameSeconds*1000)
 			if end-start < 20000 {
 				continue

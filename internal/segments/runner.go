@@ -105,7 +105,7 @@ func (a Analyzer) analyze(ctx context.Context, episodes []*domain.MediaItem) (in
 	}
 	// Membership is part of the matching cache, so newly added/removed episodes
 	// trigger matching while unchanged seasons need only lightweight metadata.
-	membership := "matcher-v3;"
+	membership := "matcher-v4;"
 	for _, entry := range entries {
 		membership += entry.Identity.Item + ":" + entry.Identity.Revision + ";"
 	}
