@@ -57,7 +57,7 @@ func prepareSkipScript(options config.SkipConfig, media []domain.PlayableMedia, 
 		err = closeErr
 	}
 	if err != nil {
-		os.Remove(f.Name())
+		_ = os.Remove(f.Name())
 		return "", err
 	}
 	return f.Name(), nil

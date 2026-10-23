@@ -12,7 +12,7 @@ func TestResolvePlayableMarkers(t *testing.T) {
 			t.Error("markers not requested")
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"MediaContainer":{"Metadata":[{"duration":120000,"updatedAt":10,"Marker":[{"type":"intro","startTimeOffset":1000,"endTimeOffset":11000},{"type":"credits","startTimeOffset":90000,"endTimeOffset":110000}],"Media":[{"Part":[{"id":7,"size":900,"key":"/media"}]}]}]}}`))
+		_, _ = w.Write([]byte(`{"MediaContainer":{"Metadata":[{"duration":120000,"updatedAt":10,"Marker":[{"type":"intro","startTimeOffset":1000,"endTimeOffset":11000},{"type":"credits","startTimeOffset":90000,"endTimeOffset":110000}],"Media":[{"Part":[{"id":7,"size":900,"key":"/media"}]}]}]}}`))
 	}))
 	media, err := client.ResolvePlayable(context.Background(), "episode")
 	if err != nil {

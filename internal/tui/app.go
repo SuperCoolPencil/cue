@@ -951,13 +951,6 @@ func (m *Model) libraryColumn() *components.ListColumn {
 	return m.ColumnStack.Get(0)
 }
 
-// validateContentID checks if the top column has the expected content ID.
-// Returns false if the column doesn't match (user navigated away before async load completed).
-func (m *Model) validateContentID(expectedID string) bool {
-	top := m.ColumnStack.Top()
-	return top != nil && top.ContentID() == expectedID
-}
-
 // updateLibraryStates updates the library states in the library column and inspector
 func (m *Model) updateLibraryStates() {
 	if libCol := m.libraryColumn(); libCol != nil {
@@ -1284,12 +1277,11 @@ func (m Model) handleMouseMsg(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 				}
 				// Map visible indices to screen X using layout widths
 				widths := map[int]int{}
-				if stackLen == 1 {
-					widths[0] = layout.activeWidth
-				} else if stackLen == 2 {
+				switch stackLen {
+				case 2:
 					widths[0] = layout.parentWidth
 					widths[1] = layout.activeWidth
-				} else {
+				default:
 					widths[topIdx-2] = layout.grandparentWidth
 					widths[topIdx-1] = layout.parentWidth
 					widths[topIdx] = layout.activeWidth

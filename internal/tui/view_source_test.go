@@ -21,9 +21,15 @@ func TestLocalViewsRefreshWithoutServerLibraryRequests(t *testing.T) {
 				if id == filterUnwatchedID {
 					movie.ViewOffset = 0
 				}
-				st.SaveLibraries([]domain.Library{{ID: "movies", Type: "movie"}})
-				st.SaveMovies("movies", []*domain.MediaItem{movie}, 1)
-				st.SaveQueueItems([]*domain.MediaItem{movie})
+				if err := st.SaveLibraries([]domain.Library{{ID: "movies", Type: "movie"}}); err != nil {
+					t.Fatal(err)
+				}
+				if err := st.SaveMovies("movies", []*domain.MediaItem{movie}, 1); err != nil {
+					t.Fatal(err)
+				}
+				if err := st.SaveQueueItems([]*domain.MediaItem{movie}); err != nil {
+					t.Fatal(err)
+				}
 				m := newVirtualTestModel(st) // No client: a server call would fail the test.
 				m.Inspector = components.NewInspector()
 				m.ColumnStack.Reset(components.NewLibraryColumn(m.allLibraryEntries()))
@@ -84,9 +90,15 @@ func TestPlaybackCompletionUpdatesLocalProjectionBeforeRefresh(t *testing.T) {
 			t.Run(id+"/"+map[bool]string{false: "partial", true: "watched"}[watched], func(t *testing.T) {
 				st, _ := store.NewLibraryStore("", "", "")
 				item := &domain.MediaItem{ID: "movie", Type: domain.MediaTypeMovie, Duration: time.Minute}
-				st.SaveLibraries([]domain.Library{{ID: "lib", Type: "movie"}})
-				st.SaveMovies("lib", []*domain.MediaItem{item}, 1)
-				st.SaveQueueItems([]*domain.MediaItem{item})
+				if err := st.SaveLibraries([]domain.Library{{ID: "lib", Type: "movie"}}); err != nil {
+					t.Fatal(err)
+				}
+				if err := st.SaveMovies("lib", []*domain.MediaItem{item}, 1); err != nil {
+					t.Fatal(err)
+				}
+				if err := st.SaveQueueItems([]*domain.MediaItem{item}); err != nil {
+					t.Fatal(err)
+				}
 				m := newVirtualTestModel(st)
 				m.Inspector = components.NewInspector()
 				m.ColumnStack.Reset(components.NewLibraryColumn(m.allLibraryEntries()))

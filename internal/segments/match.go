@@ -41,8 +41,8 @@ func pairMatches(ctx context.Context, a, b []uint32, minFrames int) ([]match, er
 			i = 0
 		}
 		start, lastGood, good := -1, -1, 0
-		flush := func(end int) {
-			end = lastGood + 1
+		flush := func() {
+			end := lastGood + 1
 			if start >= 0 && end-start >= minFrames && good*10 >= (end-start)*9 && diverse(a[start:end]) {
 				matches = append(matches, match{start, end})
 			}
@@ -56,12 +56,12 @@ func pairMatches(ctx context.Context, a, b []uint32, minFrames int) ([]match, er
 				lastGood = i
 				good++
 			} else if start >= 0 && i-lastGood > 8 {
-				flush(i)
+				flush()
 			}
 			i++
 			j++
 		}
-		flush(i)
+		flush()
 	}
 	return matches, nil
 }

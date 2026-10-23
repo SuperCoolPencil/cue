@@ -39,7 +39,7 @@ func TestInvalidateAllPreservesLocalQueue(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			defer st.Close()
+			defer func() { _ = st.Close() }()
 			items, ok := st.GetQueueItems()
 			if !ok || len(items) != 1 || items[0].ID != queue[0].ID {
 				t.Fatalf("queue lost: %#v", items)
@@ -57,13 +57,23 @@ func TestPlaybackProgressUpdatesEveryCachedCopy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer st.Close()
+	defer func() { _ = st.Close() }()
 	item := &domain.MediaItem{ID: "item", Type: domain.MediaTypeEpisode}
-	st.SaveMovies("lib", []*domain.MediaItem{item}, 1)
-	st.SaveMixedContent("mixed", []domain.ListItem{item}, 1)
-	st.SaveEpisodes("lib", "show", "season", []*domain.MediaItem{item})
-	st.SavePlaylistItems("playlist", []*domain.MediaItem{item})
-	st.SaveQueueItems([]*domain.MediaItem{item})
+	if err := st.SaveMovies("lib", []*domain.MediaItem{item}, 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SaveMixedContent("mixed", []domain.ListItem{item}, 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SaveEpisodes("lib", "show", "season", []*domain.MediaItem{item}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SavePlaylistItems("playlist", []*domain.MediaItem{item}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SaveQueueItems([]*domain.MediaItem{item}); err != nil {
+		t.Fatal(err)
+	}
 	st.SetPlaybackProgress(item.ID, 45*time.Second, 1234)
 	movies, _ := st.GetMovies("lib")
 	mixed, _ := st.GetMixedContent("mixed")

@@ -87,7 +87,9 @@ func TestStartupAnalysisCacheAndCleanup(t *testing.T) {
 func TestStartupFailureDoesNotPrune(t *testing.T) {
 	cache := Cache{Root: t.TempDir()}
 	obsolete := cache.ShowDir("server", "user", "removed")
-	os.MkdirAll(obsolete, 0700)
+	if err := os.MkdirAll(obsolete, 0700); err != nil {
+		t.Fatal(err)
+	}
 	analyzer := Analyzer{Client: &inventoryClient{fail: true}, Cache: cache, Server: "server", User: "user"}
 	if err := analyzer.Startup(context.Background()); err == nil {
 		t.Fatal("expected inventory failure")

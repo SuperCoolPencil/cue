@@ -25,24 +25,24 @@ func runChapters(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 	if item == "" || fs.NArg() != 0 || (write && file == "") {
-		fmt.Fprintln(stderr, "Usage: cue chapters --item <id> [--write --file <original.mkv>]")
+		_, _ = fmt.Fprintln(stderr, "Usage: cue chapters --item <id> [--write --file <original.mkv>]")
 		return 2
 	}
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		fmt.Fprintln(stderr, err)
+		_, _ = fmt.Fprintln(stderr, err)
 		return 1
 	}
 	client, err := mediaserver.NewClient(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
-		fmt.Fprintln(stderr, err)
+		_, _ = fmt.Fprintln(stderr, err)
 		return 1
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	media, err := client.ResolvePlayable(ctx, item)
 	cancel()
 	if err != nil {
-		fmt.Fprintln(stderr, "Could not resolve selected media source")
+		_, _ = fmt.Fprintln(stderr, "Could not resolve selected media source")
 		return 1
 	}
 	requestCtx, stop := context.WithTimeout(context.Background(), 30*time.Second)
@@ -61,7 +61,7 @@ func runChapters(args []string, stdout, stderr io.Writer) int {
 	if !write {
 		b, err := segments.ChapterXML(media.Segments, media.DurationMs)
 		if err != nil {
-			fmt.Fprintln(stderr, err)
+			_, _ = fmt.Fprintln(stderr, err)
 			return 1
 		}
 		if _, err := stdout.Write(b); err != nil {
@@ -72,9 +72,9 @@ func runChapters(args []string, stdout, stderr io.Writer) int {
 	ctx, cancel = context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 	if err := segments.EmbedMKV(ctx, file, media.Segments, media.DurationMs); err != nil {
-		fmt.Fprintln(stderr, err)
+		_, _ = fmt.Fprintln(stderr, err)
 		return 1
 	}
-	fmt.Fprintln(stdout, "Chapters embedded; original preserved as .cue-chapters.bak. Refresh server metadata if needed.")
+	_, _ = fmt.Fprintln(stdout, "Chapters embedded; original preserved as .cue-chapters.bak. Refresh server metadata if needed.")
 	return 0
 }

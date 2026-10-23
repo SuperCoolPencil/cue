@@ -55,13 +55,6 @@ func (m Model) currentProfileName() string {
 	return m.AppConfig.CurrentProfile
 }
 
-func (m Model) playerName() string {
-	if m.AppConfig == nil || m.AppConfig.Player.Command == "" {
-		return "auto"
-	}
-	return m.AppConfig.Player.Command
-}
-
 func filterKey(id string) string {
 	switch id {
 	case filterUnwatchedID:
