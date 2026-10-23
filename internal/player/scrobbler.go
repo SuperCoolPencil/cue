@@ -285,15 +285,10 @@ func (s *Scrobbler) Monitor(ctx context.Context, cmd *exec.Cmd, ipcSocket string
 		}
 
 		// Final position update on exit
-		playMu.Lock()
-		finalItem := activeItem
-		finalPos := lastPosMs
-		playMu.Unlock()
 		if mpv != nil {
 			if posSecs, perr := mpv.GetTimePos(); perr == nil {
-				finalPos = int64(posSecs * 1000)
 				playMu.Lock()
-				lastPosMs = finalPos
+				lastPosMs = int64(posSecs * 1000)
 				playMu.Unlock()
 			}
 		}
@@ -307,7 +302,7 @@ func (s *Scrobbler) Monitor(ctx context.Context, cmd *exec.Cmd, ipcSocket string
 		}
 		// Capture after the IPC reader stops, including its final queued events.
 		playMu.Lock()
-		finalItem, finalPos = activeItem, lastPosMs
+		finalItem, finalPos := activeItem, lastPosMs
 		playMu.Unlock()
 		if mpv != nil {
 			progress.finish(&progressUpdate{finalItem, finalPos})

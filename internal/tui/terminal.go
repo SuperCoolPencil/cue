@@ -27,16 +27,16 @@ func DetectTerminal(input *os.File, output io.Writer) {
 	if err != nil {
 		return
 	}
-	defer term.Restore(int(input.Fd()), oldState)
+	defer func() { _ = term.Restore(int(input.Fd()), oldState) }()
 	reader, err := terminalQueryReader(input, time.Now().Add(180*time.Millisecond))
 	if err != nil {
 		return
 	}
 	defer func() {
 		if reader != input {
-			reader.Close()
+			_ = reader.Close()
 		} else {
-			reader.SetReadDeadline(time.Time{})
+			_ = reader.SetReadDeadline(time.Time{})
 		}
 	}()
 	// Kitty graphics query (image id 31) plus primary DA and cell pixel size.
@@ -87,7 +87,7 @@ func terminalQueryReader(input *os.File, deadline time.Time) (*os.File, error) {
 		return nil, err
 	}
 	if err := reader.SetReadDeadline(deadline); err != nil {
-		reader.Close()
+		_ = reader.Close()
 		return nil, err
 	}
 	return reader, nil

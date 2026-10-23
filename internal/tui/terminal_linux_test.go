@@ -18,7 +18,7 @@ func queryTestTerminal(t *testing.T) (*os.File, *os.File) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { master.Close() })
+	t.Cleanup(func() { _ = master.Close() })
 	if err := unix.IoctlSetPointerInt(int(master.Fd()), unix.TIOCSPTLCK, 0); err != nil {
 		t.Fatal(err)
 	}
@@ -32,7 +32,7 @@ func queryTestTerminal(t *testing.T) (*os.File, *os.File) {
 		t.Fatal(err)
 	}
 	input := os.NewFile(uintptr(fd), name)
-	t.Cleanup(func() { input.Close() })
+	t.Cleanup(func() { _ = input.Close() })
 	return input, master
 }
 

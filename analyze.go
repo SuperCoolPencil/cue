@@ -28,17 +28,17 @@ func runAnalyze(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 	if season == "" || fs.NArg() != 0 || window < 30 || window > 900 || introWindow < 30 || introWindow > 900 || audio < 0 {
-		fmt.Fprintln(stderr, "Usage: cue analyze --season <server-season-id> [--intro-window 600] [--window 300] [--audio-track 0]")
+		_, _ = fmt.Fprintln(stderr, "Usage: cue analyze --season <server-season-id> [--intro-window 600] [--window 300] [--audio-track 0]")
 		return 2
 	}
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		fmt.Fprintln(stderr, err)
+		_, _ = fmt.Fprintln(stderr, err)
 		return 1
 	}
 	client, err := mediaserver.NewClient(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
-		fmt.Fprintln(stderr, err)
+		_, _ = fmt.Fprintln(stderr, err)
 		return 1
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -46,9 +46,9 @@ func runAnalyze(args []string, stdout, stderr io.Writer) int {
 	analyzer := segments.Analyzer{Client: client, Cache: segments.DefaultCache(), Server: cfg.Server.URL, User: cfg.Server.UserID, WindowSeconds: window, IntroWindowSeconds: introWindow, AudioTrack: audio}
 	count, err := analyzer.AnalyzeSeason(ctx, season)
 	if err != nil {
-		fmt.Fprintln(stderr, err)
+		_, _ = fmt.Fprintln(stderr, err)
 		return 1
 	}
-	fmt.Fprintf(stdout, "Saved %d skip segments. Playback will use your configured skip mode for the same media revision.\n", count)
+	_, _ = fmt.Fprintf(stdout, "Saved %d skip segments. Playback will use your configured skip mode for the same media revision.\n", count)
 	return 0
 }

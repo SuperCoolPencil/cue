@@ -19,7 +19,7 @@ func TestMPVMovieSubtitlePreferencePersists(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { os.Remove(script) })
+	t.Cleanup(func() { _ = os.Remove(script) })
 	extra := []string{"--script=" + script}
 	for i := 1; i <= 3; i++ {
 		path := filepath.Join(t.TempDir(), fmt.Sprintf("sub%d.srt", i))

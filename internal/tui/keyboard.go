@@ -69,9 +69,10 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.pendingPlayback = nil
 			m.pendingPlaylist = nil
 			m.State = StateBrowsing
-			if m.confirmFocusedIdx == 0 {
+			switch m.confirmFocusedIdx {
+			case 0:
 				return m, PlayItemCmd(m.PlaybackSvc, item, true, m.UIConfig.Autoplay, playlist...)
-			} else if m.confirmFocusedIdx == 1 {
+			case 1:
 				return m, PlayItemCmd(m.PlaybackSvc, item, false, m.UIConfig.Autoplay, playlist...)
 			}
 			return m, nil

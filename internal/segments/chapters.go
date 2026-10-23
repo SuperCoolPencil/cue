@@ -103,8 +103,8 @@ func EmbedMKV(ctx context.Context, path string, segments []domain.SkipSegment, d
 	if err != nil {
 		return fmt.Errorf("could not lock original media")
 	}
-	lock.Close()
-	defer os.Remove(path + ".cue-chapters.lock")
+	_ = lock.Close()
+	defer func() { _ = os.Remove(path + ".cue-chapters.lock") }()
 	original, err := os.Lstat(path)
 	if err != nil {
 		return err
@@ -134,9 +134,9 @@ func EmbedMKV(ctx context.Context, path string, segments []domain.SkipSegment, d
 	if err != nil {
 		return err
 	}
-	defer os.Remove(metadata.Name())
+	defer func() { _ = os.Remove(metadata.Name()) }()
 	if _, err := metadata.Write(xmlData); err != nil {
-		metadata.Close()
+		_ = metadata.Close()
 		return err
 	}
 	if err := metadata.Close(); err != nil {
@@ -146,14 +146,14 @@ func EmbedMKV(ctx context.Context, path string, segments []domain.SkipSegment, d
 	if err != nil {
 		return err
 	}
-	defer os.Remove(staged.Name())
+	defer func() { _ = os.Remove(staged.Name()) }()
 	source, err := os.Open(path)
 	if err != nil {
-		staged.Close()
+		_ = staged.Close()
 		return err
 	}
 	_, err = io.Copy(staged, source)
-	source.Close()
+	_ = source.Close()
 	closeErr := staged.Close()
 	if err == nil {
 		err = closeErr
@@ -202,7 +202,7 @@ func EmbedMKV(ctx context.Context, path string, segments []domain.SkipSegment, d
 		return fmt.Errorf("could not preserve original backup (existing backups are never overwritten)")
 	}
 	if err := os.Rename(staged.Name(), path); err != nil {
-		os.Remove(backup)
+		_ = os.Remove(backup)
 		return err
 	}
 	return nil

@@ -13,7 +13,7 @@ func TestResolvePlayableSegments(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				if r.URL.Path == "/Items/episode/PlaybackInfo" {
-					w.Write([]byte(`{"MediaSources":[{"Id":"source","Container":"mkv","Size":900,"RunTimeTicks":1200000000}]}`))
+					_, _ = w.Write([]byte(`{"MediaSources":[{"Id":"source","Container":"mkv","Size":900,"RunTimeTicks":1200000000}]}`))
 					return
 				}
 				if r.URL.Path != "/MediaSegments/episode" {
@@ -23,7 +23,7 @@ func TestResolvePlayableSegments(t *testing.T) {
 					w.WriteHeader(http.StatusNotFound)
 					return
 				}
-				w.Write([]byte(`{"Items":[{"Type":"Intro","StartTicks":10000000,"EndTicks":110000000},{"Type":"Outro","StartTicks":900000000,"EndTicks":1100000000},{"Type":"Recap","StartTicks":0,"EndTicks":10000000}]}`))
+				_, _ = w.Write([]byte(`{"Items":[{"Type":"Intro","StartTicks":10000000,"EndTicks":110000000},{"Type":"Outro","StartTicks":900000000,"EndTicks":1100000000},{"Type":"Recap","StartTicks":0,"EndTicks":10000000}]}`))
 			}))
 			defer server.Close()
 			media, err := NewClient(server.URL, "token", "user", "device", nil).ResolvePlayable(context.Background(), "episode")

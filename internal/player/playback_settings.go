@@ -14,15 +14,6 @@ import (
 //go:embed playback_settings.lua
 var playbackSettingsLua string
 
-// preparePlaybackSettings gives mpv its own event-driven preference store.
-func preparePlaybackSettings(showID string) (string, error) {
-	return prepareScopedPlaybackSettings("", "", showID)
-}
-
-func prepareScopedPlaybackSettings(server, user, showID string, mapPath ...func(string) string) (string, error) {
-	return prepareScopedItemPlaybackSettings(server, user, showID, false, mapPath...)
-}
-
 func prepareScopedItemPlaybackSettings(server, user, itemID string, movie bool, mapPath ...func(string) string) (string, error) {
 	root, err := os.UserConfigDir()
 	if err != nil {
@@ -60,11 +51,11 @@ func prepareScopedItemPlaybackSettings(server, user, itemID string, movie bool, 
 	_, writeErr := script.WriteString(source)
 	closeErr := script.Close()
 	if writeErr != nil {
-		os.Remove(script.Name())
+		_ = os.Remove(script.Name())
 		return "", writeErr
 	}
 	if closeErr != nil {
-		os.Remove(script.Name())
+		_ = os.Remove(script.Name())
 		return "", closeErr
 	}
 	return script.Name(), nil

@@ -47,7 +47,7 @@ func Extract(ctx context.Context, source string, offsetMs int64, seconds, audioT
 	}
 	nonce := make([]byte, 16)
 	if _, err := rand.Read(nonce); err != nil {
-		listener.Close()
+		_ = listener.Close()
 		return nil, err
 	}
 	proxyPath := "/" + hex.EncodeToString(nonce)
@@ -58,12 +58,12 @@ func Extract(ctx context.Context, source string, offsetMs int64, seconds, audioT
 			return
 		}
 		if r.Method != "GET" && r.Method != "HEAD" {
-			http.Error(w, "method not allowed", 405)
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		req, err := http.NewRequestWithContext(ctx, r.Method, source, nil)
 		if err != nil {
-			http.Error(w, "source unavailable", 502)
+			http.Error(w, "source unavailable", http.StatusBadGateway)
 			return
 		}
 		for _, key := range []string{"Range", "If-Range"} {
@@ -73,12 +73,12 @@ func Extract(ctx context.Context, source string, offsetMs int64, seconds, audioT
 		}
 		response, err := client.Do(req)
 		if err != nil {
-			http.Error(w, "source unavailable", 502)
+			http.Error(w, "source unavailable", http.StatusBadGateway)
 			return
 		}
-		defer response.Body.Close()
+		defer func() { _ = response.Body.Close() }()
 		if response.StatusCode != 200 && response.StatusCode != 206 {
-			http.Error(w, "source unavailable", 502)
+			http.Error(w, "source unavailable", http.StatusBadGateway)
 			return
 		}
 		for _, key := range []string{"Content-Length", "Content-Range", "Accept-Ranges", "Content-Type"} {
@@ -92,7 +92,7 @@ func Extract(ctx context.Context, source string, offsetMs int64, seconds, audioT
 		}
 	})}
 	go func() { _ = server.Serve(listener) }()
-	defer server.Close()
+	defer func() { _ = server.Close() }()
 	cmd := exec.CommandContext(ctx, "ffmpeg", "-nostdin", "-v", "error", "-threads", "1", "-ss", strconv.FormatFloat(float64(offsetMs)/1000, 'f', 3, 64), "-i", "http://"+listener.Addr().String()+proxyPath, "-t", strconv.Itoa(seconds), "-map", fmt.Sprintf("0:a:%d", audioTrack), "-ac", "1", "-ar", "11025", "-f", "chromaprint", "-algorithm", "1", "-fp_format", "raw", "pipe:1")
 	output := &limitedBuffer{limit: 128 * 1024}
 	cmd.Stdout = output

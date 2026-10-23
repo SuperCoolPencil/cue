@@ -44,7 +44,7 @@ func startTestMPV(t *testing.T, options config.SkipConfig, media []domain.Playab
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { os.Remove(script) })
+	t.Cleanup(func() { _ = os.Remove(script) })
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
 	socket := newMPVSocketPath()
@@ -57,7 +57,11 @@ func startTestMPV(t *testing.T, options config.SkipConfig, media []domain.Playab
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { cmd.Process.Kill(); cmd.Wait(); os.Remove(socket) })
+	t.Cleanup(func() {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+		_ = os.Remove(socket)
+	})
 	var connection *mpvConn
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
@@ -70,7 +74,7 @@ func startTestMPV(t *testing.T, options config.SkipConfig, media []domain.Playab
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { connection.Close() })
+	t.Cleanup(func() { _ = connection.Close() })
 	return connection
 }
 func TestMPVSkipPromptSeekUndoAndChapters(t *testing.T) {
@@ -145,7 +149,9 @@ func TestMPVRespectsUserBindingAndExistingChapters(t *testing.T) {
 		a, _ := v.([]interface{})
 		return len(a) == 2
 	})
-	connection.request([]interface{}{"seek", 2, "absolute", "exact"})
+	if _, err := connection.request([]interface{}{"seek", 2, "absolute", "exact"}); err != nil {
+		t.Fatal(err)
+	}
 	time.Sleep(100 * time.Millisecond)
 	if _, err := connection.request([]interface{}{"keypress", "Ctrl+x"}); err != nil {
 		t.Fatal(err)
@@ -173,13 +179,17 @@ func TestMPVLateAnalysisAndPlaylistMapping(t *testing.T) {
 		a, _ := v.([]interface{})
 		return len(a) == 3
 	})
-	connection.request([]interface{}{"seek", 2, "absolute", "exact"})
+	if _, err := connection.request([]interface{}{"seek", 2, "absolute", "exact"}); err != nil {
+		t.Fatal(err)
+	}
 	time.Sleep(100 * time.Millisecond)
 	if _, err := connection.request([]interface{}{"keypress", "Ctrl+x"}); err != nil {
 		t.Fatal(err)
 	}
 	mpvWait(t, func() bool { pos, _ := connection.GetTimePos(); return pos > 6.9 && pos < 7.2 })
-	connection.request([]interface{}{"playlist-prev", "force"})
+	if _, err := connection.request([]interface{}{"playlist-prev", "force"}); err != nil {
+		t.Fatal(err)
+	}
 	mpvWait(t, func() bool { v, _ := connection.GetProperty("playlist-pos"); return v == float64(0) })
 	mpvWait(t, func() bool {
 		v, _ := connection.GetProperty("chapter-list")

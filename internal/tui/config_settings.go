@@ -142,7 +142,7 @@ func setConfigInput(cfg *config.Config, path, text string) (*config.Config, erro
 	}
 	v := configField(&next, path)
 	if !v.IsValid() {
-		return nil, fmt.Errorf("Unknown setting: %s", path)
+		return nil, fmt.Errorf("unknown setting: %s", path)
 	}
 	switch v.Kind() {
 	case reflect.String:
@@ -150,23 +150,23 @@ func setConfigInput(cfg *config.Config, path, text string) (*config.Config, erro
 	case reflect.Int:
 		n, err := strconv.Atoi(text)
 		if err != nil {
-			return nil, fmt.Errorf("Enter a whole number")
+			return nil, fmt.Errorf("enter a whole number")
 		}
 		v.SetInt(int64(n))
 	case reflect.Bool:
 		b, err := strconv.ParseBool(text)
 		if err != nil {
-			return nil, fmt.Errorf("Enter true or false")
+			return nil, fmt.Errorf("enter true or false")
 		}
 		v.SetBool(b)
 	case reflect.Slice:
 		var args []string
 		if err := json.Unmarshal([]byte(text), &args); err != nil || strings.TrimSpace(text) == "null" {
-			return nil, fmt.Errorf("Enter arguments as a JSON array of strings")
+			return nil, fmt.Errorf("enter arguments as a JSON array of strings")
 		}
 		v.Set(reflect.ValueOf(args))
 	default:
-		return nil, fmt.Errorf("Use Profiles to manage server profiles")
+		return nil, fmt.Errorf("use Profiles to manage server profiles")
 	}
 	if err := next.Player.Skip.Validate(); err != nil {
 		return nil, err
@@ -174,23 +174,23 @@ func setConfigInput(cfg *config.Config, path, text string) (*config.Config, erro
 	switch path {
 	case "server.type":
 		if next.Server.Type != config.SourceTypePlex && next.Server.Type != config.SourceTypeJellyfin {
-			return nil, fmt.Errorf("Server type must be plex or jellyfin")
+			return nil, fmt.Errorf("server type must be plex or jellyfin")
 		}
 	case "server.url":
 		u, err := url.Parse(text)
 		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-			return nil, fmt.Errorf("Enter an HTTP or HTTPS server URL")
+			return nil, fmt.Errorf("enter an HTTP or HTTPS server URL")
 		}
 	case "logging.level":
 		next.Logging.Level = strings.ToUpper(text)
 		switch next.Logging.Level {
 		case "DEBUG", "INFO", "WARN", "WARNING", "ERROR":
 		default:
-			return nil, fmt.Errorf("Log level must be DEBUG, INFO, WARN, or ERROR")
+			return nil, fmt.Errorf("log level must be DEBUG, INFO, WARN, or ERROR")
 		}
 	case "current_profile":
 		if text == "" {
-			return nil, fmt.Errorf("Profile name cannot be empty")
+			return nil, fmt.Errorf("profile name cannot be empty")
 		}
 		next.ApplyProfileForUI(text)
 	}
@@ -203,7 +203,7 @@ func (m *Model) saveConfigInput(path, text string) error {
 		return err
 	}
 	if err := config.SaveConfig(next); err != nil {
-		return fmt.Errorf("Failed to save config: %w", err)
+		return fmt.Errorf("failed to save config: %w", err)
 	}
 	*m.AppConfig = *next
 	if m.PlaybackSvc != nil {
