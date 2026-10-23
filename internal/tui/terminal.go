@@ -17,7 +17,7 @@ var detectedKittyImage *bool
 // DetectTerminal queries Kitty graphics support and cell pixel dimensions.
 // Call before starting the TUI so the query replies do not enter its key loop.
 func DetectTerminal(input *os.File, output io.Writer) {
-	if strings.EqualFold(strings.TrimSpace(os.Getenv("CUE_IMAGES")), "kitty") || strings.EqualFold(strings.TrimSpace(os.Getenv("CUE_IMAGES")), "ascii") {
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("CUE_IMAGES")), "ascii") {
 		return
 	}
 	if input == nil || output == nil || !term.IsTerminal(int(input.Fd())) {

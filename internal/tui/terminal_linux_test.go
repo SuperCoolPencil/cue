@@ -37,7 +37,7 @@ func queryTestTerminal(t *testing.T) (*os.File, *os.File) {
 }
 
 func TestDetectTerminalBlockingStdin(t *testing.T) {
-	for _, mode := range []string{""} {
+	for _, mode := range []string{"", "kitty"} {
 		t.Run("mode="+mode, func(t *testing.T) {
 			t.Setenv("CUE_IMAGES", mode)
 			oldSupport, oldW, oldH := detectedKittyImage, kittyCellWpx, kittyCellHpx
