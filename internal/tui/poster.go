@@ -32,10 +32,11 @@ const (
 	posterPreviewWidth  = 30
 	posterFetchAttempts = 3
 	maxPosterPixels     = 40_000_000
-)
 
-// Terminal cell pixel dimensions, updated by DetectTerminal when supported.
-var kittyCellWpx, kittyCellHpx = 8, 16
+	// kitty cell pixel estimates used to size transmitted images.
+	kittyCellWpx = 8
+	kittyCellHpx = 16
+)
 
 // SupportsKittyImage reports whether the terminal likely supports the kitty
 // graphics protocol (used to draw real poster images instead of ASCII art).
@@ -45,14 +46,6 @@ var kittyCellWpx, kittyCellHpx = 8, 16
 // sequences, so this function returns false even when the outer terminal is
 // Kitty.
 func SupportsKittyImage() bool {
-	if mode := strings.ToLower(strings.TrimSpace(os.Getenv("CUE_IMAGES"))); mode == "kitty" {
-		return true
-	} else if mode == "ascii" {
-		return false
-	}
-	if detectedKittyImage != nil {
-		return *detectedKittyImage
-	}
 	term := os.Getenv("TERM")
 	kittyWindowID := os.Getenv("KITTY_WINDOW_ID")
 	multiplexer := terminalMultiplexer()

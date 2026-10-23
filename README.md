@@ -61,7 +61,7 @@ Discovery is Plex-only. Jellyfin continues to use the URL configured during setu
 
 ### Artwork Preview
 
-Cue queries the terminal for Kitty graphics support and uses the ASCII fallback when the protocol is unavailable. Set `CUE_IMAGES=kitty` or `CUE_IMAGES=ascii` to override detection. The terminal's reported cell pixel size is used to size image posters.
+Cue uses the Kitty graphics protocol when running directly in Kitty. Other terminals—and Kitty sessions inside tmux, Zellij, or GNU screen—use the ASCII fallback automatically.
 
 ### Keyboard Shortcuts
 
