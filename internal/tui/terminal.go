@@ -2,6 +2,7 @@ package tui
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"strconv"
@@ -27,7 +28,11 @@ func DetectTerminal(input *os.File, output io.Writer) {
 	if err != nil {
 		return
 	}
-	defer func() { _ = term.Restore(int(input.Fd()), oldState) }()
+	defer func() {
+		if err := term.Restore(int(input.Fd()), oldState); err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "Warning: failed to restore terminal settings; terminal may remain in raw mode: %v\n", err)
+		}
+	}()
 	reader, err := terminalQueryReader(input, time.Now().Add(180*time.Millisecond))
 	if err != nil {
 		return

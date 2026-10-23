@@ -18,7 +18,11 @@ func queryTestTerminal(t *testing.T) (*os.File, *os.File) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = master.Close() })
+	t.Cleanup(func() {
+		if err := master.Close(); err != nil {
+			t.Errorf("close PTY master: %v", err)
+		}
+	})
 	if err := unix.IoctlSetPointerInt(int(master.Fd()), unix.TIOCSPTLCK, 0); err != nil {
 		t.Fatal(err)
 	}
@@ -32,7 +36,11 @@ func queryTestTerminal(t *testing.T) (*os.File, *os.File) {
 		t.Fatal(err)
 	}
 	input := os.NewFile(uintptr(fd), name)
-	t.Cleanup(func() { _ = input.Close() })
+	t.Cleanup(func() {
+		if err := input.Close(); err != nil {
+			t.Errorf("close PTY input: %v", err)
+		}
+	})
 	return input, master
 }
 
