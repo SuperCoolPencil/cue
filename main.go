@@ -295,6 +295,7 @@ func run(debug bool) error {
 	model := tui.NewModel(libraryStore, librarySvc, playlistSvc, searchSvc, playbackSvc, client, cfg, cfg.UI, Version)
 	output := tui.NewOutputWriter(os.Stdout)
 	model.SetOutput(output)
+	tui.DetectTerminal(os.Stdin, os.Stdout)
 
 	// Run the TUI
 	p := tea.NewProgram(
