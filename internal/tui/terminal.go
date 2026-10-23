@@ -28,10 +28,17 @@ func DetectTerminal(input *os.File, output io.Writer) {
 		return
 	}
 	defer term.Restore(int(input.Fd()), oldState)
-	if err := input.SetReadDeadline(time.Now().Add(180 * time.Millisecond)); err != nil {
+	reader, err := terminalQueryReader(input, time.Now().Add(180*time.Millisecond))
+	if err != nil {
 		return
 	}
-	defer input.SetReadDeadline(time.Time{})
+	defer func() {
+		if reader != input {
+			reader.Close()
+		} else {
+			reader.SetReadDeadline(time.Time{})
+		}
+	}()
 	// Kitty graphics query (image id 31) plus primary DA and cell pixel size.
 	if _, err := io.WriteString(output, "\x1b_Gi=31,s=1,v=1,a=q,t=d,f=24;AAAA\x1b\\\x1b[c\x1b[16t"); err != nil {
 		return
@@ -39,7 +46,7 @@ func DetectTerminal(input *os.File, output io.Writer) {
 	var buf bytes.Buffer
 	chunk := make([]byte, 128)
 	for buf.Len() < 2048 {
-		n, err := input.Read(chunk)
+		n, err := reader.Read(chunk)
 		if n > 0 {
 			buf.Write(chunk[:n])
 		}
@@ -67,4 +74,21 @@ func DetectTerminal(input *os.File, output io.Writer) {
 			}
 		}
 	}
+}
+
+// Inherited stdin can be a blocking descriptor without Go poller support.
+// Reopening it gives Go a separate, pollable descriptor for the timed query.
+func terminalQueryReader(input *os.File, deadline time.Time) (*os.File, error) {
+	if err := input.SetReadDeadline(deadline); err == nil {
+		return input, nil
+	}
+	reader, err := os.Open(input.Name())
+	if err != nil {
+		return nil, err
+	}
+	if err := reader.SetReadDeadline(deadline); err != nil {
+		reader.Close()
+		return nil, err
+	}
+	return reader, nil
 }
