@@ -460,7 +460,7 @@ func (m Model) renderHelp() string {
 	playback := []helpEntry{
 		{"Enter", "Open / Play / Resume"},
 		{"p", "Play from start"},
-		{".", "Next episode"},
+		{".", "Quick-play next episode"},
 		{"Shift+X", "Delete media"},
 		{"w", "Mark watched"},
 		{"u", "Mark unwatched"},

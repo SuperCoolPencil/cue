@@ -71,7 +71,7 @@ Cue queries the terminal for Kitty graphics support and uses the ASCII fallback 
 | `←` `→` `h` `l` | Navigate left/right (columns) |
 | `Enter` | Open a collection, or play/resume an item |
 | `p` | Play from start |
-| `.` | Play the next unplayed episode of a selected show, or the next episode in an open season |
+| `.` | Quick-play the next unplayed episode of a selected show, or the next episode in an open season |
 | `w` / `u` | Mark watched / unwatched |
 | `f` | Global search |
 | `/` | Local filter (current column) |

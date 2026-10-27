@@ -170,7 +170,7 @@ func DefaultKeyMap() KeyMap {
 		),
 		NextEpisode: key.NewBinding(
 			key.WithKeys("."),
-			key.WithHelp(".", "next episode"),
+			key.WithHelp(".", "quick-play next episode"),
 		),
 		OpenBrowser: key.NewBinding(
 			key.WithKeys("o"),
