@@ -72,10 +72,11 @@ func (s SkipConfig) Validate() error {
 }
 
 type PlayerConfig struct {
-	Skip      SkipConfig `mapstructure:"skip"`
-	Command   string     `mapstructure:"command"`
-	Args      []string   `mapstructure:"args"`
-	StartFlag string     `mapstructure:"start_flag"` // e.g., "--start=%d" or "--start-time=%d"
+	Skip          SkipConfig `mapstructure:"skip"`
+	Command       string     `mapstructure:"command"`
+	Args          []string   `mapstructure:"args"`
+	ScreenshotDir string     `mapstructure:"screenshot_dir"`
+	StartFlag     string     `mapstructure:"start_flag"` // e.g., "--start=%d" or "--start-time=%d"
 }
 
 // UIConfig holds UI configuration
@@ -155,7 +156,7 @@ func LoadConfig() (*Config, error) {
 	for _, key := range []string{
 		"server.type", "server.url", "server.token", "server.plex_account_token", "server.user_id",
 		"server.username", "server.device_id",
-		"player.command", "player.args", "player.start_flag",
+		"player.command", "player.args", "player.start_flag", "player.screenshot_dir",
 		"player.skip.intro_window_seconds", "player.skip.analysis_at_startup", "player.skip.intro", "player.skip.outro", "player.skip.key", "player.skip.undo_key", "player.skip.chapters_when_missing",
 		"ui.show_watch_status", "ui.show_library_counts", "ui.hide_watched", "ui.autoplay",
 		"ui.theme",
@@ -240,6 +241,7 @@ func SaveConfig(cfg *Config) error {
 	viper.Set("player.command", cfg.Player.Command)
 	viper.Set("player.args", cfg.Player.Args)
 	viper.Set("player.start_flag", cfg.Player.StartFlag)
+	viper.Set("player.screenshot_dir", cfg.Player.ScreenshotDir)
 	viper.Set("player.skip.intro_window_seconds", cfg.Player.Skip.IntroWindowSeconds)
 	viper.Set("player.skip.analysis_at_startup", cfg.Player.Skip.AnalysisAtStartup)
 	viper.Set("player.skip.intro", cfg.Player.Skip.Intro)

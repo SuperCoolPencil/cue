@@ -281,6 +281,7 @@ func run(debug bool) error {
 	// Create launcher (uses configured player or auto-detects)
 	launcher := player.NewLauncher(cfg.Player.Command, cfg.Player.Args, cfg.Player.StartFlag, logger)
 	launcher.SetSkipConfig(&cfg.Player.Skip)
+	launcher.SetScreenshotDir(cfg.Player.ScreenshotDir)
 	launcher.SetSegmentCache(cfg.Server.URL, cfg.Server.UserID)
 
 	// Create services

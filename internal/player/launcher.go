@@ -24,6 +24,7 @@ type Launcher struct {
 	segmentServer, segmentUser string
 	segmentCache               segments.Cache
 	skipConfig                 config.SkipConfig
+	screenshotDir              string
 	skipMu                     sync.RWMutex
 	command                    string   // configured player command, empty for system default
 	args                       []string // additional arguments for the player
@@ -461,6 +462,7 @@ func (l *Launcher) execPlayer(player ResolvedPlayer, offsetSecs int, playlistSta
 
 	// Enable IPC for mpv
 	if isMpv {
+		args = l.appendScreenshotDir(args)
 		if settingsScript != "" {
 			args = append(args, mpvScriptArgument(settingsScript, player.Executable))
 		}
@@ -567,6 +569,9 @@ func (l *Launcher) launchConfigured(offsetSecs int, playlistStart int, settingsS
 	definition, knownPlayer := l.lookupPlayerDef(l.command)
 	name := strings.TrimSuffix(executableName(l.command), filepath.Ext(executableName(l.command)))
 	isMpv := strings.EqualFold(name, "mpv")
+	if isMpv {
+		args = l.appendScreenshotDir(args)
+	}
 	if isMpv && settingsScript != "" {
 		args = append(args, mpvScriptArgument(settingsScript, l.command))
 	}
@@ -944,6 +949,57 @@ func (l *Launcher) SetSkipConfig(options *config.SkipConfig) {
 }
 
 func (s *Service) SetSkipConfig(options *config.SkipConfig) { s.launcher.SetSkipConfig(options) }
+
+// SetScreenshotDir configures subsequent mpv launches. An empty value uses the system default.
+func (l *Launcher) SetScreenshotDir(dir string) {
+	l.skipMu.Lock()
+	defer l.skipMu.Unlock()
+	l.screenshotDir = dir
+}
+
+func (l *Launcher) appendScreenshotDir(args []string) []string {
+	l.skipMu.RLock()
+	defer l.skipMu.RUnlock()
+	dir := l.screenshotDir
+	if dir == "" {
+		dir = defaultScreenshotDir()
+		if dir != "" {
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				l.logger.Warn("failed to create screenshot directory", "path", dir, "error", err)
+				dir = ""
+			}
+		}
+	}
+	if dir != "" {
+		return append(args, "--screenshot-directory="+dir)
+	}
+	return args
+}
+
+func defaultScreenshotDir() string {
+	if dir := os.Getenv("XDG_SCREENSHOTS_DIR"); dir != "" {
+		return dir
+	}
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return ""
+	}
+	if runtime.GOOS == "darwin" {
+		return filepath.Join(home, "Desktop")
+	}
+	pictures := ""
+	if runtime.GOOS == "linux" {
+		if output, err := exec.Command("xdg-user-dir", "PICTURES").Output(); err == nil {
+			pictures = strings.TrimSpace(string(output))
+		}
+	}
+	if pictures == "" {
+		pictures = filepath.Join(home, "Pictures")
+	}
+	return filepath.Join(pictures, "Screenshots")
+}
+
+func (s *Service) SetScreenshotDir(dir string) { s.launcher.SetScreenshotDir(dir) }
 
 func (l *Launcher) SetSegmentCache(server, user string) {
 	l.segmentServer = server

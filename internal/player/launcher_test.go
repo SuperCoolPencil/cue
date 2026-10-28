@@ -415,3 +415,21 @@ func TestLaunchDefaultNoOpenerActionableError(t *testing.T) {
 		t.Fatalf("error not actionable: %v", err)
 	}
 }
+
+func TestScreenshotDirectoryArgument(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_SCREENSHOTS_DIR", filepath.Join(dir, "system screenshots"))
+	l := NewLauncher("", nil, "", nil)
+	got := l.appendScreenshotDir(nil)
+	if len(got) != 1 || got[0] != "--screenshot-directory="+filepath.Join(dir, "system screenshots") {
+		t.Fatalf("unexpected default arguments: %v", got)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "system screenshots")); err != nil {
+		t.Fatal(err)
+	}
+	l.SetScreenshotDir("/tmp/my screenshots")
+	got = l.appendScreenshotDir(nil)
+	if len(got) != 1 || got[0] != "--screenshot-directory=/tmp/my screenshots" {
+		t.Fatalf("unexpected override arguments: %v", got)
+	}
+}

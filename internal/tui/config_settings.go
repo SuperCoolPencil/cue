@@ -21,6 +21,7 @@ type configSetting struct {
 
 var configSettings = []configSetting{
 	{"player.command", "__config_player__", "Player", false, false},
+	{"player.screenshot_dir", "__config_screenshot_dir__", "mpv screenshot directory", false, false},
 	{"ui.theme", "__config_theme__", "Theme", false, true},
 	{"ui.show_watch_status", "__config_watch__", "Watch indicators", false, true},
 	{"ui.show_library_counts", "__config_counts__", "Library counts", false, true},
@@ -208,12 +209,16 @@ func (m *Model) saveConfigInput(path, text string) error {
 	*m.AppConfig = *next
 	if m.PlaybackSvc != nil {
 		m.PlaybackSvc.SetSkipConfig(&next.Player.Skip)
+		m.PlaybackSvc.SetScreenshotDir(next.Player.ScreenshotDir)
 	}
 	if top := m.ColumnStack.Top(); top != nil {
 		top.SetItems(m.configEntries())
 	}
 	m.StatusIsErr = false
 	m.StatusMsg = "Saved setting (restart Cue to apply)"
+	if path == "player.screenshot_dir" {
+		m.StatusMsg = "Saved screenshot directory (applies to next playback)"
+	}
 	if strings.HasPrefix(path, "player.skip.") && path != "player.skip.analysis_at_startup" && path != "player.skip.intro_window_seconds" {
 		m.StatusMsg = "Saved skip setting (applies to next playback)"
 	}

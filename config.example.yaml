@@ -27,6 +27,8 @@ player:
     - "--no-terminal"
   # Flag for specifying start time; %d is replaced with elapsed seconds
   # start_flag: "--start=%d"
+  # mpv screenshot directory; omit to use the system screenshot folder
+  # screenshot_dir: "/path/to/screenshots"
   # mpv intro/outro skipping: off, manual, or auto
   skip:
     analysis_at_startup: true

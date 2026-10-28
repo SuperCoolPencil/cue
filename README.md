@@ -180,3 +180,5 @@ or use `--intro-window` for an explicit season scan. `--window` controls the out
 scan separately. Changed intro windows refresh intro fingerprints and reuse unchanged
 outro fingerprints. Each episode needs a confident match; season completion does not
 mean every episode has a detected intro.
+
+To choose where mpv saves screenshots, set `player.screenshot_dir` in the Config menu or config file. When empty, Cue uses `XDG_SCREENSHOTS_DIR` if set; otherwise it uses the Screenshots folder in Pictures (or Desktop on macOS). Cue creates the default folder if needed. A custom directory must already exist and be accessible to mpv. Changes apply to the next playback.
